@@ -1,0 +1,86 @@
+name: Windows published ZIP native smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/windows-release-smoke.yml'
+      - 'scripts/smoke_windows_bundle.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    runs-on: windows-2022
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: x64
+      - name: Download public v0.9.0-rc1 ZIP and verify SHA256
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "cortex-m9-windows"
+          New-Item -ItemType Directory -Path $dir -Force | Out-Null
+          gh release download v0.9.0-rc1 --repo parksy1625/cortex-debugger --pattern 'Cortex-Debugger-v0.9.0-rc1.zip' --dir $dir
+          gh release download v0.9.0-rc1 --repo parksy1625/cortex-debugger --pattern '*.sha256' --dir $dir
+          $zip = Join-Path $dir "Cortex-Debugger-v0.9.0-rc1.zip"
+          $checksum = (Get-Content (Join-Path $dir "Cortex-Debugger-v0.9.0-rc1.zip.sha256") -Raw).Split(' ')[0].Trim().ToLowerInvariant()
+          $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $checksum) { throw "Release ZIP checksum mismatch" }
+          Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $dir "runtime") -Force
+          if (-not (Test-Path (Join-Path $dir "runtime\start.ps1"))) { throw "Missing PowerShell launcher" }
+      - name: Start actual packaged local server using PowerShell launcher
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "cortex-m9-windows"
+          $root = Join-Path $dir "runtime"
+          $env:CORTEX_DATA_DIR = Join-Path $dir "data"
+          $env:CORTEX_JOB_TIMEOUT_SECONDS = "300"
+          $log = Join-Path $dir "server.log"
+          $err = Join-Path $dir "server-error.log"
+          $proc = Start-Process powershell.exe -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$root\start.ps1`"") -WorkingDirectory $root -PassThru -RedirectStandardOutput $log -RedirectStandardError $err
+          Set-Content -Path (Join-Path $dir "server.pid") -Value $proc.Id
+          $ready = $false
+          for ($n = 0; $n -lt 180; $n++) {
+            Start-Sleep -Seconds 5
+            try {
+              $health = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/health" -TimeoutSec 5
+              if ($health.status -eq "ok") { $ready = $true; break }
+            } catch { }
+            if ($proc.HasExited) { break }
+          }
+          if (-not $ready) {
+            Write-Host "Local application did not boot; last diagnostics follow."
+            if (Test-Path $err) { Get-Content $err -Tail 50 }
+            if (Test-Path $log) { Get-Content $log -Tail 40 }
+            throw "PowerShell launcher failed to start published bundle"
+          }
+          Write-Host "Packaged UI and API started successfully on loopback."
+      - name: Execute pinned GPT-2 Windows CPU intervention over installed HTTP API
+        shell: pwsh
+        run: python scripts/smoke_windows_bundle.py
+      - name: Shut down local Windows process
+        if: always()
+        shell: pwsh
+        run: |
+          $pidFile = Join-Path $env:RUNNER_TEMP "cortex-m9-windows\server.pid"
+          if (Test-Path $pidFile) {
+            $processId = [int](Get-Content $pidFile)
+            & taskkill.exe /T /F /PID $processId 2>$null
+          }
+      - name: Upload redacted diagnostics only on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cortex-m9-windows-install-failure
+          path: |
+            ${{ runner.temp }}/cortex-m9-windows/server.log
+            ${{ runner.temp }}/cortex-m9-windows/server-error.log
+          if-no-files-found: ignore

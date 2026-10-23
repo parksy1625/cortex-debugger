@@ -1,0 +1,103 @@
+name: macOS Finder app launcher build and MPS test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/macos-app.yml'
+      - 'scripts/build_macos_app.py'
+      - 'scripts/smoke_macos_bundle.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test-app:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download verified public runtime ZIP
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/cortex-m9-download"
+          gh release download v0.9.0-rc1 --repo parksy1625/cortex-debugger --pattern 'Cortex-Debugger-v0.9.0-rc1.zip' --dir "$RUNNER_TEMP/cortex-m9-download"
+          gh release download v0.9.0-rc1 --repo parksy1625/cortex-debugger --pattern '*.sha256' --dir "$RUNNER_TEMP/cortex-m9-download"
+          cd "$RUNNER_TEMP/cortex-m9-download"
+          shasum -a 256 -c *.sha256
+      - name: Build native Finder .app container around published ZIP
+        run: |
+          python scripts/build_macos_app.py \
+            --zip "$RUNNER_TEMP/cortex-m9-download/Cortex-Debugger-v0.9.0-rc1.zip" \
+            --out "$RUNNER_TEMP/cortex-m9-built"
+          plutil -lint "$RUNNER_TEMP/cortex-m9-built/Cortex Debugger.app/Contents/Info.plist"
+          test -x "$RUNNER_TEMP/cortex-m9-built/Cortex Debugger.app/Contents/MacOS/CortexDebugger"
+      - name: Boot extracted app launcher using first-run real installation
+        run: |
+          CORTEX_TEST_LAUNCH=1 \
+          CORTEX_RUNTIME_HOME="$RUNNER_TEMP/cortex-m9-user" \
+          CORTEX_DATA_DIR="$RUNNER_TEMP/cortex-m9-data" \
+          CORTEX_JOB_TIMEOUT_SECONDS=300 \
+            "$RUNNER_TEMP/cortex-m9-built/Cortex Debugger.app/Contents/MacOS/CortexDebugger" >"$RUNNER_TEMP/m9-mac-launch.log" 2>&1 &
+          echo $! >"$RUNNER_TEMP/m9-mac-launch.pid"
+          for n in $(seq 1 120); do
+            if curl -fsS http://127.0.0.1:8000/api/v1/health >/dev/null; then break; fi
+            if [ "$n" -eq 120 ]; then tail -100 "$RUNNER_TEMP/m9-mac-launch.log"; exit 1; fi
+            sleep 5
+          done
+          curl -fsS http://127.0.0.1:8000/ | grep -q '<div id="root"'
+          test -f "$RUNNER_TEMP/cortex-m9-user/v0.9.0-rc1/.venv/.cortex-m8-ready"
+      - name: Validate actual MPS GPT-2 intervention through app's local API
+        run: |
+          python -c "import platform; assert platform.machine() == 'arm64'"
+          "$RUNNER_TEMP/cortex-m9-user/v0.9.0-rc1/.venv/bin/python" -c "import torch; assert torch.backends.mps.is_available()"
+          python scripts/smoke_macos_bundle.py
+      - name: Pack Finder application and checksum
+        run: |
+          mkdir -p artifacts
+          cd "$RUNNER_TEMP/cortex-m9-built"
+          ditto -c -k --sequesterRsrc --keepParent "Cortex Debugger.app" "$GITHUB_WORKSPACE/artifacts/Cortex-Debugger-macOS-App-v0.9.0-rc1.zip"
+          cd "$GITHUB_WORKSPACE/artifacts"
+          shasum -a 256 Cortex-Debugger-macOS-App-v0.9.0-rc1.zip > Cortex-Debugger-macOS-App-v0.9.0-rc1.zip.sha256
+          shasum -a 256 -c Cortex-Debugger-macOS-App-v0.9.0-rc1.zip.sha256
+      - name: Shut down test app
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/m9-mac-launch.pid" ]; then kill "$(cat "$RUNNER_TEMP/m9-mac-launch.pid")" || true; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Cortex-Debugger-Mac-App-rc1
+          path: |
+            artifacts/Cortex-Debugger-macOS-App-v0.9.0-rc1.zip
+            artifacts/Cortex-Debugger-macOS-App-v0.9.0-rc1.zip.sha256
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cortex-m9-mac-failure
+          path: ${{ runner.temp }}/m9-mac-launch.log
+          if-no-files-found: ignore
+
+  publish-app:
+    needs: build-and-test-app
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Cortex-Debugger-Mac-App-rc1
+          path: assets
+      - name: Publish only the successfully tested .app container
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd assets
+          sha256sum -c *.sha256
+          gh release upload v0.9.0-rc1 *.zip *.sha256 --repo parksy1625/cortex-debugger --clobber
