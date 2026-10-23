@@ -52,16 +52,20 @@ def build(package_zip: Path, destination: Path) -> Path:
     macos = app / "Contents" / "MacOS"
     resources = app / "Contents" / "Resources"
     runtime = resources / "runtime"
-    macos.mkdir(parents=True)
-    runtime.mkdir(parents=True)
+    # Preflight the entire archive before touching the filesystem. An invalid
+    # ZIP must not leave a half-created app that blocks a later safe attempt.
     with ZipFile(package_zip) as z:
         members = z.namelist()
         if not {"start.sh", "start.ps1", "README-RELEASE.md"}.issubset(members):
             raise ValueError("Cannot package an unexpected or incomplete runtime ZIP")
         for member in z.infolist():
             target = runtime / member.filename
-            if target.resolve().is_relative_to(runtime.resolve()) is False:
+            if not target.resolve().is_relative_to(runtime.resolve()):
                 raise ValueError("Unsafe ZIP entry")
+        macos.mkdir(parents=True)
+        runtime.mkdir(parents=True)
+        for member in z.infolist():
+            target = runtime / member.filename
             if member.filename.endswith("/"):
                 target.mkdir(parents=True, exist_ok=True)
             else:
