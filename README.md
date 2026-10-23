@@ -58,7 +58,9 @@ the network.** Shareable summaries still contain aggregate scores; review
 before sharing. JSON regression manifests contain **raw prompts**. Full
 experiment evidence may contain token IDs that reveal prompt information.
 
-Measured and locked CI results: [M7 validation](docs/M7_VALIDATION.md). Linux Python dependency versions are constrained through [requirements-linux-py311.lock](requirements-linux-py311.lock), and the web app uses [package-lock.json](apps/web/package-lock.json) with `npm ci`. The Linux constraints are **not a cross-platform, hash-verified environment lock**; on Apple Silicon, install according to the platform instead of applying the Linux file.\n\nDocs: [M7 privacy and benchmark](docs/M7_PRIVACY_BENCHMARK.md) ·
+Measured and locked CI results: [M7 validation](docs/M7_VALIDATION.md). Linux Python dependency versions are constrained through [requirements-linux-py311.lock](requirements-linux-py311.lock), and the web app uses [package-lock.json](apps/web/package-lock.json) with `npm ci`. The Linux constraints are **not a cross-platform, hash-verified environment lock**; on Apple Silicon, install according to the platform instead of applying the Linux file.
+
+Docs: [M7 privacy and benchmark](docs/M7_PRIVACY_BENCHMARK.md) ·
 [M6 worker safety](docs/M6_ISOLATION.md) ·
 [M5 real-model validation](docs/M5_VALIDATION.md) ·
 [M4 Apple MPS](docs/M4_VALIDATION.md).
