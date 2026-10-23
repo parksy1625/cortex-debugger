@@ -51,6 +51,10 @@ cortex verify experiments/regression/gpt2-dog-cat.json \
 ```
 
 `--artifact` is an **offline** check: it does not rerun GPT-2.
+**M6 CI validation succeeded:** [86 Python tests + React build](https://github.com/parksy1625/cortex-debugger/actions/runs/40002751276),
+[real GPT-2 API + browser E2E](https://github.com/parksy1625/cortex-debugger/actions/runs/40002751327).
+See the [full M6 verification report](docs/M6_VALIDATION.md).
+
 See [M6 isolation and resource limits](docs/M6_ISOLATION.md),
 [M5 real-model validation](docs/M5_VALIDATION.md),
 [M4 CPU/MPS measurements](docs/M4_VALIDATION.md) and
