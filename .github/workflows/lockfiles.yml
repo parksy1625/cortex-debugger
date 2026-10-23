@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/lockfiles.yml'
+      - 'constraints-linux-py311.in'
   workflow_dispatch:
 
 permissions:
@@ -31,6 +32,7 @@ jobs:
       - name: Resolve Python 3.11 Linux dependencies
         run: |
           uv pip compile pyproject.toml --extra api --extra ml --extra dev \
+            --constraint constraints-linux-py311.in \
             --python-version 3.11 \
             --output-file requirements-linux-py311.lock
       - name: Generate npm lockfile
