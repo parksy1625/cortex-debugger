@@ -2,6 +2,14 @@
 
 **Local-first activation-patching debugger, experiment studio and model regression gate.**
 
+## M9 — Platform launchers (verified)
+
+**macOS Apple Silicon:** [Download Finder .app ZIP](https://github.com/parksy1625/cortex-debugger/releases/download/v0.9.0-rc1/Cortex-Debugger-macOS-App-v0.9.0-rc1.zip). Extract the ZIP and launch `Cortex Debugger.app`. This unsigned Finder wrapper creates its writable runtime in Application Support and opens Terminal/browser. The [MPS packaged-app smoke test](https://github.com/parksy1625/cortex-debugger/actions/runs/40015722520) passed on GitHub macOS ARM64, but Finder double-click/AppleScript UI was not exercised automatically.
+
+**Windows x64:** [Download Windows GUI ZIP](https://github.com/parksy1625/cortex-debugger/releases/download/v0.9.0-rc1/Cortex-Debugger-Windows-v0.9.0-rc1.zip). Extract the ZIP and open `CortexDebugger.exe`; the window offers Start, Stop and Open browser. The [native Windows test](https://github.com/parksy1625/cortex-debugger/actions/runs/40016740044) validated installation through PowerShell, real GPT-2 CPU inference, self-contained .NET GUI compilation and the packaged `--self-test` executable. Interactive window clicking was not automated.
+
+**Both launchers require preinstalled Python 3.11+ and internet for first-run Python/model dependencies.** The Mac .app is unsigned/not notarized, and the Windows .exe is not code-signed. These are local launchers, not complete offline installers. See [M9 validation](docs/M9_VALIDATION.md).
+
 ## M8 · v0.9.0-rc1 (release candidate)
 
 M8 adds a **downloadable local ZIP** with a compiled React web UI, the
@@ -32,7 +40,7 @@ or the Python interpreter itself. Internet access is needed on first install.
 **Linux x86-64 and Apple Silicon macOS packaged-run validation succeeded.**
 The [Apple MPS smoke test](https://github.com/parksy1625/cortex-debugger/actions/runs/40011896404)
 downloaded the published ZIP, executed `bash start.sh`, and completed a
-real GPT-2 MPS experiment. Windows script execution remains unverified.
+real GPT-2 MPS experiment. Windows PowerShell installation and real GPT-2 CPU inference are also validated by [Windows M9 CI](https://github.com/parksy1625/cortex-debugger/actions/runs/40016740044).
 
 ### Developer mode (source checkout)
 
@@ -65,8 +73,7 @@ The pinned model revision is
 - Server is unauthenticated. It is **localhost-only**; never expose it on a
   public/network interface or use multiple Uvicorn workers.
 - CPU/MPS parity is supported by limited model-backed smoke evidence, not a
-  cross-model benchmark; macOS installation passed the M8 real-model smoke check; Windows
-  installation remains unverified.
+  cross-model benchmark; macOS and Windows bootstrap installation were tested on hosted runners; native GUI interaction and code signatures remain unverified.
 
 Previous measured validation: [M7 report](docs/M7_VALIDATION.md) ·
 [M6 subprocess isolation](docs/M6_VALIDATION.md).

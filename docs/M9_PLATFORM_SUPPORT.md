@@ -10,11 +10,17 @@ download PyTorch/TransformerLens/GPT-2 on first use.
 The `Windows published ZIP native smoke` workflow downloads the **public
 v0.9.0-rc1 release**, verifies its SHA-256, extracts it on a Windows runner,
 launches the bundled `start.ps1`, boots the local server and executes the
-canonical GPT-2 patch through its HTTP API. We should only mark Windows
-support tested if this full workflow succeeds.
+canonical GPT-2 patch through its HTTP API. This **passed** in [M9 Windows CI](https://github.com/parksy1625/cortex-debugger/actions/runs/40016740044).
 
-This is PowerShell/CPU bootstrap, not an MSI, code-signed EXE, or offline
-installer. The runtime uses one process, listens only on 127.0.0.1 and
+The workflow also builds a **.NET 8 self-contained Windows Forms GUI launcher**,
+combines `CortexDebugger.exe` with a fresh copy of the same release runtime,
+performs a headless `--self-test` of the final EXE, and publishes a SHA-256-
+checked portable Windows ZIP. The GUI provides Start / Stop / Open browser
+actions and is styled as a compact dark local control panel. The graphical
+button interactions themselves are **not verified in headless CI**.
+
+This is PowerShell/CPU bootstrap plus a compiled GUI launcher, not an MSI,
+code-signed app, or offline installer. The runtime uses one process, listens only on 127.0.0.1 and
 does not expose an internet-facing API.
 
 ## macOS Finder .app
@@ -32,8 +38,9 @@ the loopback API to become ready, and opens the browser UI.
 
 A macOS ARM64 GitHub workflow builds the Finder container, exercises its
 executable non-interactively against an isolated user runtime directory,
-and then executes real MPS GPT-2 inference. After success, a zipped
-`.app` and SHA-256 checksum are uploaded to the v0.9.0-rc1 GitHub Release.
+and then executes real MPS GPT-2 inference. This [macOS app workflow](https://github.com/parksy1625/cortex-debugger/actions/runs/40015722520)
+**passed**, and a zipped `.app` and SHA-256 checksum were added to the
+[v0.9.0-rc1 GitHub Release](https://github.com/parksy1625/cortex-debugger/releases/tag/v0.9.0-rc1).
 
 **Not a standalone/offline native binary:** this .app is a Finder launcher,
 not a fully bundled Python/Torch executable. It is unsigned and
@@ -50,3 +57,5 @@ same app executable using `CORTEX_TEST_LAUNCH=1`.
 - Raw regression manifests contain prompts and evidence may contain tokens.
 - Windows MSI, truly self-contained macOS builds, code signing and
   notarization, per-platform locks and updater/rollback remain milestones.
+- No public interface exposed; however a malicious local process can reach
+  this unauthenticated loopback API. Not suitable for adversarial multi-user environments.
