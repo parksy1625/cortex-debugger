@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "model": {
+    "id": "openai-community/gpt2",
+    "revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+    "device": "cpu"
+  },
+  "experiment": {
+    "clean": "The dog runs",
+    "corrupted": "The cat runs",
+    "correct_token": " dog",
+    "incorrect_token": " cat",
+    "layer": 5,
+    "token_index": 2
+  },
+  "assertions": {
+    "control_delta_max": 0.0001,
+    "recovery_min": 0.75,
+    "recovery_max": 1.35,
+    "patched_margin_min": 0.55,
+    "patched_margin_max": 1.15
+  }
+}

@@ -1,0 +1,48 @@
+name: Pinned model regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/cortex-engine/src/cortex_engine/**'
+      - 'experiments/regression/**'
+      - '.github/workflows/regression.yml'
+      - 'pyproject.toml'
+  pull_request:
+    paths:
+      - 'packages/cortex-engine/src/cortex_engine/**'
+      - 'experiments/regression/**'
+      - '.github/workflows/regression.yml'
+      - 'pyproject.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gpt2-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned TransformerLens backend
+        run: pip install -e '.[ml]'
+      - name: Validate versioned experiment manifest
+        run: cortex validate experiments/regression/gpt2-dog-cat.json
+      - name: Replay model and assert regression bounds
+        run: |
+          cortex verify experiments/regression/gpt2-dog-cat.json \
+            --report artifacts/regression-report.json \
+            --junit artifacts/regression-junit.xml
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cortex-gpt2-regression
+          path: |
+            artifacts/regression-report.json
+            artifacts/regression-junit.xml
+          if-no-files-found: warn

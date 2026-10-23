@@ -19,6 +19,7 @@ jobs:
       - run: ruff check packages/cortex-engine/src apps/api tests
       - run: pytest -q
       - run: python -m cortex_engine.cli info
+      - run: cortex validate experiments/regression/gpt2-dog-cat.json
   web:
     runs-on: ubuntu-latest
     steps:

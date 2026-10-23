@@ -1,4 +1,4 @@
-"""Cortex CLI: deterministic scores, GPT-2 self-patch, and paired-prompt analysis."""
+"""Cortex CLI: model interventions and fail-closed regression verification."""
 
 from __future__ import annotations
 
@@ -35,6 +35,15 @@ def build_parser() -> argparse.ArgumentParser:
     pair.add_argument("--device", choices=["cpu", "mps"], default="cpu")
     pair.add_argument("--revision", help="Hugging Face 40-character model commit SHA")
     pair.add_argument("--output", help="Save JSON report to file")
+
+    validate = sub.add_parser("validate", help="Validate a strict pinned-model regression manifest")
+    validate.add_argument("manifest", help="Path to schema-versioned JSON manifest")
+
+    verify = sub.add_parser("verify", help="Replay model experiment; exit 1 if assertions fail")
+    verify.add_argument("manifest", help="Path to schema-versioned JSON manifest")
+    verify.add_argument("--artifact", help="Offline check of existing report (does NOT rerun model)")
+    verify.add_argument("--report", help="Path to write assertion results JSON")
+    verify.add_argument("--junit", help="Path to write JUnit XML for CI")
     return parser
 
 
@@ -42,7 +51,11 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         if args.command == "info":
-            output = {"version": __version__, "stage": "M1", "supported_models": ["openai-community/gpt2"]}
+            output = {
+                "version": __version__, "stage": "M3",
+                "supported_models": ["openai-community/gpt2"],
+                "commands": ["info", "score", "smoke", "pair", "validate", "verify"],
+            }
         elif args.command == "score":
             output = {
                 "recovery": recovery_score(args.clean, args.corrupted, args.patched),
@@ -65,17 +78,35 @@ def main(argv: list[str] | None = None) -> int:
                 dest = Path(args.output)
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_text(json.dumps(output, indent=2) + "\n", encoding="utf-8")
+        elif args.command == "validate":
+            from cortex_engine.regression import load_manifest
+
+            manifest = load_manifest(args.manifest)
+            output = {"status": "valid", "schema_version": manifest["schema_version"],
+                      "model_id": manifest["model"]["id"],
+                      "revision": manifest["model"]["revision"],
+                      "assertions": list(manifest["assertions"])}
+        elif args.command == "verify":
+            from cortex_engine.regression import load_manifest, verify, write_json, write_junit
+
+            manifest = load_manifest(args.manifest)
+            output = verify(manifest, artifact_path=args.artifact)
+            if args.report:
+                write_json(args.report, output)
+            if args.junit:
+                write_junit(args.junit, output)
         else:
             from cortex_engine.adapters.transformerlens import self_patch_smoke
 
             output = self_patch_smoke(
                 prompt=args.prompt, device=args.device, layer=args.layer,
-                token_index=args.token_index
+                token_index=args.token_index,
             )
-        print(json.dumps(output, indent=2, ensure_ascii=False))
+        print(json.dumps(output, indent=2, ensure_ascii=False, allow_nan=False))
         return 1 if output.get("status") == "fail" else 0
-    except (RuntimeError, ValueError, ImportError) as exc:
-        print(json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False), file=sys.stderr)
+    except (RuntimeError, ValueError, ImportError, OSError) as exc:
+        print(json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False),
+              file=sys.stderr)
         return 2
 
 
