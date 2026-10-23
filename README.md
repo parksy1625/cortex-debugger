@@ -21,10 +21,11 @@ strict CLI regression verifier with a local browser experiment studio.
 - [Previous quality CI](https://github.com/parksy1625/cortex-debugger/actions/runs/39994490378): 76 Python tests and React production build passed.
 - [M3 validation details](docs/M3_VALIDATION.md).
 
-M4 Chromium browser E2E is configured in
-[.github/workflows/browser-e2e.yml](.github/workflows/browser-e2e.yml).
-See its live GitHub Actions status rather than assuming it passed.
-Apple MPS measurements and real-model browser E2E are **not yet verified**.
+**M4 independent validation passed:** [3/3 Chromium E2E checks](https://github.com/parksy1625/cortex-debugger/actions/runs/39996800312),
+[real GPT-2 on Apple Silicon MPS](https://github.com/parksy1625/cortex-debugger/actions/runs/39996476238),
+[Python 77 tests + React build](https://github.com/parksy1625/cortex-debugger/actions/runs/39995932741).
+See [M4 measured evidence](docs/M4_VALIDATION.md) for the CPU–MPS comparison.
+Browser E2E against a **real** model server is not yet automated.
 
 ## Start locally
 

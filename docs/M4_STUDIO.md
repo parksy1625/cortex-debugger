@@ -4,8 +4,7 @@
 
 M4 adds an in-browser **review and download** workflow for a versioned
 regression manifest, Playwright Chromium E2E coverage, and a worker restart
-safety fix. Browser integration should be regarded as validated only after
-the [Browser E2E Action](../.github/workflows/browser-e2e.yml) passes.
+safety fix. Browser integration with mocked API responses was verified: [3/3 E2E pass](https://github.com/parksy1625/cortex-debugger/actions/runs/39996800312).
 
 ## Workflow
 
@@ -56,7 +55,7 @@ when it starts. It cannot safely resume old in-flight inference because
 original raw prompts are intentionally not persisted. This avoids endlessly
 polling orphaned jobs. No safe mid-inference cancellation or hard timeout yet.
 
-## Apple Silicon / MPS: manual verification (NOT completed)
+## Apple Silicon / MPS: validated on GitHub's ARM64 macOS runner
 
 On a Mac with compatible PyTorch MPS:
 
@@ -69,9 +68,10 @@ cortex pair --clean 'The dog runs' --corrupted 'The cat runs' \
   --output artifacts/apple-mps-example.json
 ```
 
-Compare CPU and MPS numerical deltas; do not presume deterministic equality,
-identical tolerance or performance. MPS has not yet been measured and requires
-an actual Apple device.
+The pinned GPT-2 smoke and paired activation patch passed on real Apple Silicon
+([workflow #39996476238](https://github.com/parksy1625/cortex-debugger/actions/runs/39996476238)).
+See [CPU vs MPS measured values](M4_VALIDATION.md); do not assume parity
+for other models, prompts, dtype settings or execution environments.
 
 ## Known gaps
 

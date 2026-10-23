@@ -7,6 +7,6 @@
 - Only GPT-2 is supported, <=128 tokens, matching lengths, single-token candidates and one patched residual per experiment.
 - API is intentionally unauthenticated; 127.0.0.1 only. Do not expose on a public port.
 - Queue: 1 running, 2 waiting; startup now marks orphaned previous jobs failed. No hard timeout, live inference cancellation, or model reuse guarantee.
-- Actual Apple Silicon MPS and end-to-end browser execution against real weights are not yet measured.
+- Apple Silicon MPS actual GPT-2 was verified on the macOS ARM64 runner ([evidence](M4_VALIDATION.md)); browser↔real-model E2E is still not measured.
 - Browser export generates sample engineering tolerances, not scientifically justified confidence bounds.
 - Exact environment pinning, signed provenance, model revision comparison and remote multiuser security are future work.
