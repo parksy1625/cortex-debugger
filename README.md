@@ -75,8 +75,6 @@ example, **not** a comprehensive causal explanation of GPT-2.
 - [M5 performance and integration design](docs/M5_STABILITY.md)
 - [Known limitations](docs/LIMITATIONS.md)
 
-M5 runtime and speed changes should only be claimed after measured real runs.
-The model cache reduces repeated **model loading**, not the number of
-activation-patching forward passes.
+**M5 real-model validation passed:** [81 Python tests and React build](https://github.com/parksy1625/cortex-debugger/actions/runs/40000365809), [real FastAPI two-run cache test and live Chromium E2E](https://github.com/parksy1625/cortex-debugger/actions/runs/40000365940). See [M5 validation report](docs/M5_VALIDATION.md).\n\nModel cache reuse was confirmed, but no end-to-end speedup factor has been established. The cache skips repeated model loading; activation-patching forward passes remain.
 
 MIT License.
