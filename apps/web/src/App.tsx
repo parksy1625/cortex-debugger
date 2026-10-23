@@ -76,7 +76,7 @@ export default function App(){
   if(!manifest)return;
   const problem=validateManifestBounds(manifest);
   if(problem){setError(problem);return;}
-  const blob=new Blob([JSON.stringify(manifest,null,2)+'\\n'],{type:'application/json'});
+  const blob=new Blob([JSON.stringify(manifest,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a');
   a.href=url; a.download='cortex-regression-'+(current?.id.slice(0,8)??'experiment')+'.json';
   a.click();URL.revokeObjectURL(url);
