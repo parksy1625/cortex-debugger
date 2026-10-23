@@ -102,7 +102,7 @@ jobs:
 
   publish-tagged-release:
     needs: bundle-smoke
-    if: github.ref == 'refs/tags/v0.9.0-rc1'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/tags/v0.9.0-rc1'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -118,4 +118,12 @@ jobs:
         run: |
           cd artifacts
           sha256sum -c *.sha256
-          gh release create "$GITHUB_REF_NAME" ./*.zip ./*.sha256 --title "Cortex Debugger $GITHUB_REF_NAME" --notes "M8 local runtime release candidate: compiled UI + Python wheel + launch scripts; dependencies and GPT-2 weights download on first install. Localhost only." --prerelease
+          if gh release view v0.9.0-rc1 >/dev/null 2>&1; then
+            echo "Verified release candidate already exists"
+          else
+            gh release create v0.9.0-rc1 ./*.zip ./*.sha256 \
+              --target "$GITHUB_SHA" \
+              --title "Cortex Debugger v0.9.0-rc1" \
+              --notes "M8 local runtime release candidate. ZIP verified by extracting into a fresh Python environment and running real GPT-2 Chromium end-to-end. First launch requires Python 3.11+, an internet connection and model downloads. Localhost-only, not an offline installer or signed executable." \
+              --prerelease
+          fi
