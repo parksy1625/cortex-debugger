@@ -7,7 +7,7 @@ client = TestClient(app)
 def test_health():
     response = client.get("/api/v1/health")
     assert response.status_code == 200
-    assert response.json()["stage"] == "M2"
+    assert response.json()["stage"] == "M4"
 
 def test_models_are_allowlisted():
     assert client.get("/api/v1/models").json()["models"][0]["id"] == "openai-community/gpt2"
