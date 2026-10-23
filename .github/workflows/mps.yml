@@ -1,0 +1,43 @@
+name: Apple Silicon MPS smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/mps.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  mps-validation:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install verified model backend
+        run: python -m pip install -e '.[ml]'
+      - name: Confirm real Metal accelerator availability
+        run: |
+          python -c "import platform, torch; print('Machine:', platform.machine()); print('Torch:', torch.__version__); print('MPS:', torch.backends.mps.is_available()); assert platform.machine() == 'arm64' and torch.backends.mps.is_available()"
+      - name: GPT-2 identity self-patch on MPS
+        run: |
+          mkdir -p artifacts
+          cortex smoke --device mps --layer 0 --token-index 0 | tee artifacts/mps-identity.json
+      - name: GPT-2 paired activation patch on MPS
+        run: |
+          cortex pair --clean 'The dog runs' --corrupted 'The cat runs' \
+            --correct-token ' dog' --incorrect-token ' cat' \
+            --layer 5 --token-index 2 --device mps \
+            --output artifacts/mps-pair.json
+      - name: Publish reproducibility evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cortex-mps-validation
+          path: artifacts/
+          if-no-files-found: warn
