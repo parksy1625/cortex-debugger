@@ -1,24 +1,21 @@
-# Known limitations — M5 v0.6-dev
+# Known limitations — M6 (v0.7-dev)
 
-- AI explanation remains **local intervention analysis**, not a complete
-  model reasoning/circuit explanation.
-- Model cache is process-local and deliberately holds a full GPT-2 bridge
-  in memory. It trades RAM for less model loading and does not reduce
-  per-experiment activation cache usage.
-- A single Uvicorn worker is required. Running multiple processes will create
-  independent caches and separate SQLite task queues. Never expose the API
-  on a network; there is no authorization.
-- No hard inference timeout, safe mid-run cancellation, or maximum process
-  resident memory guard. Failed jobs do not retain private raw prompts in
-  SQLite, but input token IDs are included in completed evidence.
-- Live model browser tests use pinned GPT-2 and may download weights. The
-  pipeline measures workflow correctness, not a representative benchmark.
-- Python/Node package lock files are not yet complete. Exact GPT-2 revision is
-  pinned, and TransformerLens 4.2.0 is pinned; Torch dependency varies by
-  environment unless explicitly constrained in CI.
-- Data exported as regression manifests contains raw prompts. Users must
-  choose safe, nonprivate examples before committing them.
-- Apple Silicon MPS was verified in M4 for one pinned experiment, not a
-  cross-model numerical reproducibility guarantee.
-- Remote multiuser security, signed provenance, cancellation deadlines and
-  executable packaging are future work.
+- The worker process separates PyTorch state from the API process and allows
+  forcible cancellation, but this is **not an adversarial security sandbox**.
+- The per-experiment timeout is hard at the subprocess lifetime level;
+  RSS memory budget uses periodic psutil sampling and can miss transient peaks.
+  Device VRAM and Apple unified-memory allocator accounting need further
+  verification.
+- Multiple Uvicorn processes are **unsupported** with process-local task
+  queues and model worker. Bind only to localhost; no authentication.
+- Model loading can be interrupted, potentially requiring checkpoint cache
+  cleanup or redownload.
+- Enforced cap on IPC output length and rate limiting are not yet implemented.
+- Completed JSON artifacts include prompt token IDs; manifest downloads
+  contain full raw prompts. Do not publish private data.
+- Only one model family (pinned GPT-2), one activation site at a time,
+  bounded token lengths and candidate IDs are currently supported.
+- No platform-specific complete dependency lockfiles, reproducible package
+  installer, signed artifacts, or diverse benchmark distribution.
+- M5 real model E2E proves end-to-end work with thread worker; M6
+  subprocess E2E must be checked in the new GitHub Actions run.

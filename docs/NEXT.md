@@ -1,14 +1,14 @@
-# Roadmap after M5
+# Follow-up after M6
 
-1. Review real browser→API→GPT-2 and repeat-model tests and confirm cache
-   measurements; resolve any workflow failures without masking them.
-2. Document cold/warm end-to-end latency with repeatable CPU/MPS runs.
-3. Move model execution into a worker process for enforceable deadlines,
-   cancellation and memory isolation (threads cannot safely kill PyTorch).
-4. Add secure local artifact retention/deletion policy and redact token IDs
-   from optional shared reports.
-5. Add complete platform-specific `uv.lock` and Node package-lock, verified
-   with reproducible GitHub Actions installations.
-6. Add desktop packaging and user onboarding; never deploy unauthenticated
-   inference API publicly.
-7. Research multi-model adapters only after preserving token and hook semantics.
+1. Verify M6 isolated subprocess live-model HTTP/Chromium integration and
+   timeout/cancellation recovery in GitHub Actions.
+2. Add fixed maximum IPC response size; consider enforcing memory with Linux
+   cgroups v2 / systemd slices and Windows job objects.
+3. Add real-model cancellation and timeout integration scenarios; measure
+   time to terminate, restart and recover model memory.
+4. Capture CPU/MPS cold and warm model load + activation passes and peak
+   process RSS with repeatable hardware and dependency metadata.
+5. Create vetted Python lockfiles and package-lock.json, switch CI to
+   reproducible installation.
+6. Release local installation packages, a privacy-safe report redaction
+   flow, and optional branch protection checks.

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import threading
 import uuid
@@ -9,6 +10,13 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
+
+from apps.api.model_process import (
+    ModelProcess,
+    WorkerCancelled,
+    WorkerMemoryExceeded,
+    WorkerTimeout,
+)
 
 
 def utcnow() -> str:
@@ -29,6 +37,15 @@ class ExperimentManager:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.runner = runner
+        self.isolated = runner is default_runner
+        self.worker = (
+            ModelProcess(
+                timeout_seconds=float(os.environ.get("CORTEX_JOB_TIMEOUT_SECONDS", "180")),
+                memory_limit_mb=int(os.environ.get("CORTEX_WORKER_MEMORY_MB", "0")),
+            ) if self.isolated else None
+        )
+        self.active_job: str | None = None
+        self.cancel_events: dict[str, threading.Event] = {}
         self.max_outstanding = max_outstanding
         self.lock = threading.RLock()
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="cortex-model")
@@ -85,16 +102,48 @@ class ExperimentManager:
             return {"id": experiment_id, "status": "queued", "created_at": now}
 
     def _execute(self, experiment_id: str, request_data: dict[str, Any]) -> None:
-        self._update(experiment_id, "running")
+        with self.lock:
+            record = self.get(experiment_id)
+            if record is None or record["status"] == "cancelled":
+                return
+            event = threading.Event()
+            self.cancel_events[experiment_id] = event
+            self.active_job = experiment_id
+            self._update(experiment_id, "running")
         try:
-            result = self.runner(request_data)
+            result = (
+                self.worker.execute(request_data, event)
+                if self.worker is not None else self.runner(request_data)
+            )
             status = "completed" if result.get("status") == "pass" else "failed"
-            self._update(experiment_id, status, result=result,
-                         error="Identity control failed" if status == "failed" else None)
+            with self.lock:
+                if self.get(experiment_id)["status"] != "cancelled":
+                    self._update(experiment_id, status, result=result,
+                                 error="Identity control failed" if status == "failed" else None)
+        except WorkerCancelled:
+            with self.lock:
+                self._update(experiment_id, "cancelled")
+        except (WorkerTimeout, WorkerMemoryExceeded) as exc:
+            with self.lock:
+                if self.get(experiment_id)["status"] != "cancelled":
+                    self._update(experiment_id, "failed", error=type(exc).__name__)
         except Exception as exc:
-            # Model libraries may echo private prompts in exception messages.
-            self._update(experiment_id, "failed",
-                         error=f"Model execution failed ({type(exc).__name__}); inspect server logs locally")
+            # Never publish model exception details, which might contain prompts.
+            with self.lock:
+                if self.get(experiment_id)["status"] != "cancelled":
+                    self._update(experiment_id, "failed",
+                                 error=f"Model execution failed ({type(exc).__name__})")
+        finally:
+            with self.lock:
+                self.cancel_events.pop(experiment_id, None)
+                if self.active_job == experiment_id:
+                    self.active_job = None
+
+    def model_status(self) -> dict[str, Any]:
+        if self.worker is not None:
+            return self.worker.status()
+        from cortex_engine.model_cache import MODEL_CACHE
+        return MODEL_CACHE.status()
 
     def get(self, experiment_id: str) -> dict[str, Any] | None:
         with self._db() as conn:
@@ -121,10 +170,23 @@ class ExperimentManager:
             if record is None:
                 raise KeyError(experiment_id)
             future = self.futures.get(experiment_id)
-            if future is None or record["status"] != "queued" or not future.cancel():
-                raise NotCancellable("Only queued jobs can be cancelled; running model computation cannot be interrupted safely")
-            self._update(experiment_id, "cancelled")
-            return True
+            if record["status"] == "queued" and future is not None and future.cancel():
+                self._update(experiment_id, "cancelled")
+                return True
+            if (
+                self.worker is not None and record["status"] == "running"
+                and self.active_job == experiment_id
+            ):
+                self.cancel_events[experiment_id].set()
+                self.worker.stop()
+                self._update(experiment_id, "cancelled")
+                return True
+            raise NotCancellable("Job cannot be cancelled in its current state")
 
     def shutdown(self) -> None:
+        if self.worker is not None:
+            with self.lock:
+                if self.active_job is not None:
+                    self.cancel_events[self.active_job].set()
+                self.worker.stop()
         self.executor.shutdown(wait=True, cancel_futures=True)

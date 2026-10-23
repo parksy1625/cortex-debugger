@@ -1,24 +1,27 @@
 # Cortex Debugger
 
-Local-first AI model debugger: activation patching, browser investigation, and
-**replayable causal regression testing**.
+**AI model activation debugger and reproducible regression workbench.**
 
-## M5 · v0.6.0-dev
+M6 / v0.7.0-dev adds **isolated GPT-2 execution** to the validated
+M5 model cache, React experiment studio and pinned-model regression runner.
 
-- **Single-process model reuse** for consecutive experiments with the same
-  model/revision/device. One model is held in RAM; switching configuration
-  evicts the previous instance. Hook operations are serialized.
-- Explicit model cache status in `GET /api/v1/models` (load count, hit count,
-  revision, device). Set `CORTEX_DISABLE_MODEL_CACHE=1` to opt out.
-- More reproducible evidence: Python, PyTorch and TransformerLens versions,
-  OS/architecture, seed, dtype, cache status, and model load duration recorded.
-- **Real-model HTTP API + browser** integration checks in GitHub Actions, in
-  addition to fast API simulations and unit tests.
-- M4 features retained: React layer×token map, hash-checked regression
-  manifest exporter, SQLite history, bounded experiment queue, strict
-  `cortex verify` with nonzero CI failure and JUnit XML.
+## Capabilities
 
-## Set up (localhost only)
+- Compare a clean vs corrupted prompt and patch one residual activation.
+- Visualize layer×token differences, logit margins and self-patch control.
+- Create validated, versioned regression JSON from the browser (contains
+  raw prompts; keep private inputs out of public repositories).
+- Re-run the pinned model with `cortex verify`, emit JUnit and fail CI
+  on out-of-bound changes.
+- **M6: one persistent model subprocess, one running job + two queued**.
+  Running model work can be cancelled by killing its isolated worker.
+- **M6: enforce per-job deadline** (default 180s) and optional sampled
+  process RSS memory budget. A new task restarts a killed worker.
+- SQLite stores derived model evidence and status without saving raw prompts.
+
+## Local development
+
+Python 3.11+, Node 22+:
 
 ```bash
 python -m pip install -e '.[dev,api,ml]'
@@ -26,36 +29,20 @@ pytest -q
 python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000
 ```
 
-In another shell:
-
 ```bash
 cd apps/web
 npm install
 npm run dev
-# http://127.0.0.1:5173
+# Open http://127.0.0.1:5173
 ```
 
-GPT-2 weights are downloaded on first use. Do not expose the API publicly;
-it has **no authentication**, rate limiting for hostile environments, or
-per-request process isolation.
+Set `CORTEX_JOB_TIMEOUT_SECONDS=180` and optionally
+`CORTEX_WORKER_MEMORY_MB=0`. A value of 0 disables the RSS guard.
+Use exactly **one** API server process: each additional worker has its
+own queue and model subprocess. This is a localhost-only unauthenticated
+research tool; **do not expose it on the network**.
 
-## Real-model end-to-end tests
-
-Separate GitHub workflow: [Real-model API and browser E2E](.github/workflows/real-model-e2e.yml).
-The workflow validates the FastAPI job queue with **two actual GPT-2 runs**,
-checks cache miss → hit, starts the local API, and drives a real model
-experiment from the Chromium browser. It is intentionally heavier than the
-mocked browser tests; its current status must be checked in GitHub Actions.
-
-```bash
-CORTEX_RUN_REAL_MODEL=1 pytest -q -m real_model tests/test_live_model_api.py
-
-# With API + Vite running:
-cd apps/web
-CORTEX_LIVE_MODEL=1 npx playwright test tests/live-model.spec.ts
-```
-
-## Regression replay
+## Regression CI
 
 ```bash
 cortex validate experiments/regression/gpt2-dog-cat.json
@@ -63,18 +50,11 @@ cortex verify experiments/regression/gpt2-dog-cat.json \
   --report artifacts/regression.json --junit artifacts/regression.xml
 ```
 
-`cortex verify --artifact FILE` checks existing JSON only and **does not**
-rerun a model. A regression manifest contains raw prompts: never publish
-confidential input. The one recorded dog/cat experiment is a mechanical smoke
-example, **not** a comprehensive causal explanation of GPT-2.
+`--artifact` is an **offline** check: it does not rerun GPT-2.
+See [M6 isolation and resource limits](docs/M6_ISOLATION.md),
+[M5 real-model validation](docs/M5_VALIDATION.md),
+[M4 CPU/MPS measurements](docs/M4_VALIDATION.md) and
+[known limitations](docs/LIMITATIONS.md).
 
-## Evidence and limitations
-
-- [M4 verified CPU/MPS model results](docs/M4_VALIDATION.md)
-- [M3 pinned GPT-2 replay validation](docs/M3_VALIDATION.md)
-- [M5 performance and integration design](docs/M5_STABILITY.md)
-- [Known limitations](docs/LIMITATIONS.md)
-
-**M5 real-model validation passed:** [81 Python tests and React build](https://github.com/parksy1625/cortex-debugger/actions/runs/40000365809), [real FastAPI two-run cache test and live Chromium E2E](https://github.com/parksy1625/cortex-debugger/actions/runs/40000365940). See [M5 validation report](docs/M5_VALIDATION.md).\n\nModel cache reuse was confirmed, but no end-to-end speedup factor has been established. The cache skips repeated model loading; activation-patching forward passes remain.
-
-MIT License.
+CI must run on each change. Actual throughput and memory savings must be
+measured before making quantitative performance claims.
