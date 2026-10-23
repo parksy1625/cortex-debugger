@@ -9,8 +9,9 @@
 - Process/worker model cache holds GPT-2 in memory between experiments.
 - CPU cold/warm benchmarks contain substantial startup variance;
   they are measurements on one CI runner, not cross-platform speed guarantees.
-- Python transitive and Node full lockfiles are not yet independently
-  verified and committed. Do not claim fully reproducible installs.
+- Node `package-lock.json` and Linux Python 3.11 constraints are committed
+  and tested in CI. They do not provide hash-verified cross-platform builds;
+  macOS MPS and Windows require separately validated environments.
 - GPT-2 has a pinned weight revision but is not a general causal explanation.
 - API has no authentication or public-network security; use localhost only.
 - One Uvicorn process. Multi-worker process-local job queues unsupported.

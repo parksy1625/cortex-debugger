@@ -55,11 +55,14 @@ uploads a JSON artifact; read the artifact before asserting any speedup.
 
 ## Installation and lockfiles
 
-Versioned install scripts and dependency manifests are tracked separately.
-The Python model revision is pinned, but transitive Python and Node
-dependencies have not yet all been committed as platform-specific lockfiles.
-Do not claim bit-for-bit reproducibility until their lockfiles and
-`npm ci`/locked install paths pass on CI.
+The repository now contains `apps/web/package-lock.json` and the pinned
+`requirements-linux-py311.lock` resolved with
+`constraints-linux-py311.in` (torch==2.7.1, matching CPU CI).
+GitHub Actions validates `npm ci` and performs Linux Python installs with
+`-c requirements-linux-py311.lock`. This constrains dependency versions,
+but **is not a hash-verified or universal reproducible binary environment**;
+Mac MPS and Windows require separately validated solutions.
+See [M7 CI and measured evidence](M7_VALIDATION.md).
 
 ## Safety and status
 
