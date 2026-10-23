@@ -152,6 +152,8 @@ class ModelProcess:
                 continue
             if line is None:
                 self.stop()
+                if cancel.is_set():
+                    raise WorkerCancelled("Model operation was cancelled")
                 raise WorkerExited("Model process exited without a result")
             try:
                 response = json.loads(line)
