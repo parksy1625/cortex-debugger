@@ -1,9 +1,11 @@
-# Known limitations (M0)
+# Known limitations (M1 engine, v0.2-dev)
 
-- No clean/corrupted pair GUI yet. The React view is a transparent readiness dashboard, not a completed debugger.
-- The `smoke` command needs network access to download GPT-2 on first run (unless model is cached).
-- Exact model weights SHA, dependency lockfiles, and reproducible builds are **not yet implemented**.
-- A same-input self patch checks intervention machinery; it does **not** demonstrate causal recovery.
-- Hook compatibility and `mps` numerical tolerance are not verified in this environment. The manual model smoke job is the first required validation.
-- API exposes only health, model allowlist, and scalar metric endpoints, not an experiment job queue.
-- Do not expose local API publicly before adding auth, CORS policy, rate limits, file limits, and other safeguards.
+- CLI paired-prompt intervention has unit tests against a synthetic bridge but has **not yet been run against real TransformerLens 4.2 + GPT-2 weights**.
+- The React page is a system-status screen, not the interactive experiment GUI; API has no experiment job queue.
+- GPU support is limited to experimental Apple MPS; CPU is the verification target.
+- Model revision is selectable by 40-character SHA but not required: a null revision must be treated as unsuitable for regression verification.
+- JSON artifacts contain input token IDs and derived statistics (potentially sensitive), not raw prompts/activation arrays.
+- Only exactly one residual site is patched per experiment; token lengths must match and token positions may not be semantically aligned.
+- Identity-control tolerance (1e-4) is a provisional engineering threshold that needs empirical calibration across systems/dtypes.
+- No lockfiles, memory budgets, concurrent-job isolation, persistent experiment storage, or CI regression assertions yet.
+- Do not expose the local API to the network; it has no authentication or rate limiting.

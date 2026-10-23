@@ -2,62 +2,60 @@
 
 **Causal activation debugging for open-weight language models.**
 
-> Stage **M0** — an initial, deliberately honest implementation scaffold. The complete MVP defined in [`docs/MVP_BLUEPRINT.md`](docs/MVP_BLUEPRINT.md) is **not yet built**.
+> Version **0.2.0-dev (M1 engine)** — local paired-prompt activation patching is implemented in the CLI; the interactive GUI and automated regression runner are planned. Model-backed TransformerLens execution has not yet been validated.
 
-Cortex aims to turn a paired-prompt activation-patching investigation into a reproducible regression test. Built on TransformerLens 4.x rather than reimplementing its instrumentation.
+Cortex Debugger aims to turn model interventions into reproducible AI regression tests. This product workflow—not activation patching itself—is the proposed differentiator over existing interpretability tools.
 
-## Included today
+## Current capabilities
 
-- Pure Python, unit-tested `logit_margin` and unclamped `recovery_score` primitives.
-- Explicit token-length and patch-coordinate validation.
-- **Opt-in** GPT-2 self-patch smoke experiment via TransformerLens 4.x (download / run not verified in scaffold environment).
-- Local FastAPI health and metrics endpoints, plus a React readiness dashboard.
-- GitHub Actions unit checks and opt-in model smoke.
+- `cortex pair`: GPT-2 clean/corrupted prompt comparison with bounded token length, one residual patch, identity control, logit margin recovery, per-layer RMS differences and JSON report.
+- `cortex smoke`: optional GPT-2 same-input self-patching to check hook compatibility.
+- `cortex score`: deterministic normalized logit-margin recovery calculator.
+- Local FastAPI endpoints (`/api/v1/health`, `/models`, and numeric metrics).
+- React readiness dashboard. **Does not yet show actual activation heatmaps.**
+- Python unit tests, GitHub Actions checks, and an **opt-in** real-model smoke workflow.
 
 ## Quick start
 
-Requires Python 3.11+ (Node.js 22+ for UI).
+Python 3.11+ (Node.js 22+ for web):
 
 ```bash
 python -m pip install -e '.[dev,api]'
 pytest -q
-python -m cortex_engine.cli info
-cortex score --clean 2.0 --corrupted -1.0 --patched 1.0
+cortex info
 uvicorn apps.api.main:app --host 127.0.0.1 --port 8000
 ```
-
-In another terminal:
 
 ```bash
 cd apps/web
 npm install
 npm run dev
-# http://127.0.0.1:5173
 ```
 
-Model validation, separately (first run downloads GPT-2 and may need several GB of disk space):
+### Run a real GPT-2 experiment (downloads model weights)
 
 ```bash
 python -m pip install -e '.[ml]'
 cortex smoke --device cpu --layer 0 --token-index 0
+cortex pair --clean 'The dog runs' --corrupted 'The cat runs' \
+  --correct-token ' dog' --incorrect-token ' cat' \
+  --layer 5 --token-index 1 --device cpu --output artifacts/example.json
 ```
 
-Do not claim the self-patch test passed until it has actually been run. The [manual GitHub model-smoke workflow](.github/workflows/model-smoke.yml) makes this an explicit gate.
+A paired prompt must yield identical GPT-2 tokenized lengths. Candidates must each be exactly one token. Use `--revision` with the full Hugging Face model SHA for reproducible experiments. The example is a mechanical demo, not a validated circuit finding.
 
-## Repository layout
+## Source and project plans
 
-- `packages/cortex-engine/src/cortex_engine`: local model analysis primitives and optional TransformerLens adapter
-- `apps/api`: FastAPI local service
-- `apps/web`: React dashboard (M0, no experiment GUI yet)
-- `tests`: fast model-free tests
-- `docs`: engineering plan, limitations, milestone tasks
+- Engine: [`packages/cortex-engine`](packages/cortex-engine/src/cortex_engine)
+- CLI: [`cortex_engine/cli.py`](packages/cortex-engine/src/cortex_engine/cli.py)
+- API: [`apps/api`](apps/api)
+- Web: [`apps/web`](apps/web)
+- M1 user guide: [`docs/M1_ENGINE.md`](docs/M1_ENGINE.md)
+- Roadmap: [`docs/NEXT.md`](docs/NEXT.md) and [`docs/MVP_BLUEPRINT.md`](docs/MVP_BLUEPRINT.md)
+- Limitations: [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md)
 
-## Project principles
+## Research integrity and privacy
 
-1. A heatmap is descriptive; a controlled intervention supports localized causal claims.
-2. Failing experiments and absent controls must be visible, never auto-accepted.
-3. Run locally by default; never upload private prompts to a third party by default.
-4. Pin the exact model revision before accepting cross-version regression tests.
-5. Document what is tested and distinguish from what is planned.
+Activation differences alone do not prove causation. A single intervention's effect is local to a model, prompt, and method. Prompts are hashed rather than saved to the JSON report; output token IDs can still expose sensitive information. No automatic third-party telemetry or cloud upload by default. Do not expose the local API to untrusted networks.
 
-MIT license. Contributions welcome after M0 model-hook validation.
+MIT License · Open-source contributions are welcome.

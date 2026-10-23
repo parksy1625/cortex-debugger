@@ -1,10 +1,7 @@
-# M1 development tickets
+# Development roadmap (after M1 engine)
 
-1. Pin GPT-2 revision SHA and dependency resolution; record environment and hook availability.
-2. Measure CPU GPT-2 self-patch precision; run `model-smoke` workflow and record outcome.
-3. Add same-token-length clean/corrupted pair cache and residual-stream delta summary.
-4. Add guarded candidate single-token ID validation, score recovery, and repeatable interventions.
-5. Add JSON manifest (schema version + revision + token IDs + device/dtype + scores) and assertion runner.
-6. Add FastAPI single-worker job queue, experiment persistence, and experiment API.
-7. Add React prompt editor, selectable layer/token heatmap, patch inspector, and result report.
-8. Add CPU regression suite and GitHub CI assertion gate.
+1. **M1 validation**: run manual GPT-2 self-patch and paired-prompt workflow (TransformerLens 4.2.0), pin weights revision, record timings/numerical parity.
+2. **M1 refinement**: test meaningful aligned clean/corrupted prompt pairs, per-layer activation deltas, and actual intervention scores.
+3. **M2 UI**: bounded single-worker FastAPI job queue, per-experiment SQLite metadata, React prompt editor, layer×token RMS heatmap and patch inspector.
+4. **M3 regression**: schema-versioned assertion configuration, strict model-revision matching, verified replay and nonzero CI failures on assertion violations.
+5. **M4 open source**: reproducible benchmarks, examples, documentation of limits, release workflow and model-weight safety checks.

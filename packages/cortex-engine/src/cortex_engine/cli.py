@@ -1,10 +1,11 @@
-"""Cortex CLI proof-of-concept."""
+"""Cortex CLI: deterministic scores, GPT-2 self-patch, and paired-prompt analysis."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import sys
+from pathlib import Path
 
 from cortex_engine import __version__
 from cortex_engine.metrics import recovery_score
@@ -23,6 +24,17 @@ def build_parser() -> argparse.ArgumentParser:
     smoke.add_argument("--layer", type=int, default=0)
     smoke.add_argument("--token-index", type=int, default=0)
     smoke.add_argument("--prompt", default="When Mary went to the store, she bought")
+
+    pair = sub.add_parser("pair", help="Run clean/corrupted GPT-2 activation patch experiment")
+    pair.add_argument("--clean", required=True)
+    pair.add_argument("--corrupted", required=True)
+    pair.add_argument("--correct-token", required=True)
+    pair.add_argument("--incorrect-token", required=True)
+    pair.add_argument("--layer", type=int, required=True)
+    pair.add_argument("--token-index", type=int, required=True)
+    pair.add_argument("--device", choices=["cpu", "mps"], default="cpu")
+    pair.add_argument("--revision", help="Hugging Face 40-character model commit SHA")
+    pair.add_argument("--output", help="Save JSON report to file")
     return parser
 
 
@@ -30,13 +42,29 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         if args.command == "info":
-            output = {"version": __version__, "stage": "M0", "supported_models": ["openai-community/gpt2"]}
+            output = {"version": __version__, "stage": "M1", "supported_models": ["openai-community/gpt2"]}
         elif args.command == "score":
             output = {
                 "recovery": recovery_score(args.clean, args.corrupted, args.patched),
                 "clean_score": args.clean, "corrupted_score": args.corrupted,
                 "patched_score": args.patched,
             }
+        elif args.command == "pair":
+            from cortex_engine.pairing import run_gpt2_pair
+
+            if args.revision and (len(args.revision) != 40 or
+                                  any(ch not in "0123456789abcdef" for ch in args.revision.lower())):
+                raise ValueError("--revision must be a 40-character hexadecimal commit SHA")
+            output = run_gpt2_pair(
+                clean=args.clean, corrupted=args.corrupted,
+                correct_token=args.correct_token, incorrect_token=args.incorrect_token,
+                layer=args.layer, token_index=args.token_index, device=args.device,
+                revision=args.revision,
+            )
+            if args.output:
+                dest = Path(args.output)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_text(json.dumps(output, indent=2) + "\n", encoding="utf-8")
         else:
             from cortex_engine.adapters.transformerlens import self_patch_smoke
 
