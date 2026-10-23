@@ -17,3 +17,7 @@ artifacts/
 *.ckpt
 *.bin
 .DS_Store
+
+# M4 browser testing
+playwright-report/
+test-results/

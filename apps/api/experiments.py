@@ -41,6 +41,14 @@ class ExperimentManager:
                 "updated_at TEXT NOT NULL, configuration TEXT NOT NULL, "
                 "result TEXT, error TEXT)"
             )
+            # Jobs cannot survive a process restart. Never leave stale 'running'
+            # records that the UI would poll indefinitely.
+            conn.execute(
+                "UPDATE experiments SET status='failed', updated_at=?, "
+                "error='Interrupted by worker restart' "
+                "WHERE status IN ('queued', 'running')",
+                (utcnow(),),
+            )
 
     def _db(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=15)

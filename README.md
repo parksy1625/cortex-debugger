@@ -1,80 +1,76 @@
 # Cortex Debugger
 
-**Local-first model intervention, visual debugging and automated regression tests**
+**Open-source model intervention and AI regression testing workbench.**
 
-M3 (v0.4.0-dev) implements a pinned GPT-2 regression verifier on top of
-the M2 React studio and FastAPI experiment queue.
+M4 (v0.5.0-dev) builds on a measured GPT-2 activation-patching engine and
+strict CLI regression verifier with a local browser experiment studio.
 
-## Features
+## What works
 
-- **Model experiment engine:** clean/corrupted prompt comparison, per-layer
-  residual RMS heatmap, single-site activation patch, and self-patch control.
-- **M2 GUI:** experiment creation, asynchronous status, metrics, selected heatmap
-  cell, local SQLite history and JSON export.
-- **M3 regression:** strictly validated versioned JSON manifests,
-  `cortex validate`, **live model replay** with `cortex verify`,
-  fail-closed threshold assertions and JUnit XML for CI.
-- **GitHub Actions:** Python tests, web production build, opt-in model smoke,
-  and on-change pinned GPT-2 regression gating.
+- Paired clean/corrupted prompt residual activation patching in GPT-2.
+- A layer×token activation RMS map, logit-margin scoring and self-patch control.
+- Local FastAPI bounded experiment queue, SQLite history, JSON evidence export.
+- Pinned-model `cortex verify` replay and a 13-assertion CI regression gate.
+- Browser-based regression manifest authoring: verify input hashes, model
+  revision and patch metadata, review numeric ranges, download versioned JSON.
+- Browser E2E checks with a mocked API, and a job-restart recovery guard.
 
-## Installation
+## Verified evidence
 
-Requires Python >=3.11 and Node >=22 for the UI.
+- [Real-model pinned GPT-2 regression](https://github.com/parksy1625/cortex-debugger/actions/runs/39994357934): **13/13 checks passed**, source revision pinned.
+- [Previous quality CI](https://github.com/parksy1625/cortex-debugger/actions/runs/39994490378): 76 Python tests and React production build passed.
+- [M3 validation details](docs/M3_VALIDATION.md).
+
+M4 Chromium browser E2E is configured in
+[.github/workflows/browser-e2e.yml](.github/workflows/browser-e2e.yml).
+See its live GitHub Actions status rather than assuming it passed.
+Apple MPS measurements and real-model browser E2E are **not yet verified**.
+
+## Start locally
+
+Requirements: Python 3.11+, Node.js 22+.
 
 ```bash
 python -m pip install -e '.[dev,api,ml]'
 pytest -q
-
-# Launch local model experiment API
 uvicorn apps.api.main:app --host 127.0.0.1 --port 8000
 ```
+
+In another terminal:
 
 ```bash
 cd apps/web
 npm install
 npm run dev
-# http://127.0.0.1:5173
+# Open http://127.0.0.1:5173
 ```
 
-The first GPT-2 load downloads model weights. This local API has no
-authentication; **never bind it to a public/network interface**.
+To run browser tests:
+```bash
+cd apps/web
+npx playwright install chromium
+npm run test:e2e
+```
 
-## M3 regression replay
+**Do not expose the API publicly.** It is unauthenticated and is intended to
+bind to localhost only. First model execution downloads GPT-2 weights.
+
+## Replay an experiment in CI
 
 ```bash
 cortex validate experiments/regression/gpt2-dog-cat.json
-
-# Rerun pinned GPT-2 and fail CI if comparisons are outside tolerance
 cortex verify experiments/regression/gpt2-dog-cat.json \
-  --report artifacts/regression-report.json \
-  --junit artifacts/regression-junit.xml
-
-# Offline JSON check only: does not run model
-cortex verify experiments/regression/gpt2-dog-cat.json \
-  --artifact artifacts/model-smoke-pair.json
+  --report artifacts/regression.json \
+  --junit artifacts/regression.xml
 ```
 
-Exit status: `0` pass, `1` regression assertion failure, `2` execution
-or manifest error. The CLI does not quietly fall back to offline mode.
+Exit statuses: 0 all checks pass, 1 regression assertion failure, 2 invalid
+manifest or execution error. Supplying `--artifact` checks saved JSON **without
+rerunning the model**. A manifest contains **raw prompts**; never commit private
+or proprietary inputs.
 
-The sample experiment uses a pinned `openai-community/gpt2` revision
-`607a30d783dfa663caf39e06633721c8d4cfcd7e`.
-The observed model-backed reference is documented in
-[docs/MEASURED_RESULTS.md](docs/MEASURED_RESULTS.md), with a
-[successful smoke run](https://github.com/parksy1625/cortex-debugger/actions/runs/39992734283).
-A successful patch is a **local intervention result**, not a complete
-explanation of model reasoning.
+Guides: [M4 studio](docs/M4_STUDIO.md) ·
+[M3 replay](docs/M3_REGRESSION.md) ·
+[Known limitations](docs/LIMITATIONS.md).
 
-Model-backed M3 CI evidence: [13/13 regression checks passed](https://github.com/parksy1625/cortex-debugger/actions/runs/39994357934) and [76 Python tests + web build passed](https://github.com/parksy1625/cortex-debugger/actions/runs/39994490378). The measurements and remaining limitations are recorded in [M3 validation report](docs/M3_VALIDATION.md).\n\nSee [M3 regression guide](docs/M3_REGRESSION.md),
-[M2 UI guide](docs/M2_STUDIO.md) and [known limitations](docs/LIMITATIONS.md).
-
-## Project structure
-
-- `packages/cortex-engine/`: instrumentation, patching and regression assertions
-- `apps/api/`: local asynchronous experiment runner and SQLite
-- `apps/web/`: React/TypeScript experimental visualization
-- `experiments/regression/`: versioned, example-safe CI verification manifests
-- `tests/`: unit, integration, error and regression failure tests
-- `.github/workflows/`: quality, model smoke and pinned regression replay
-
-MIT License. Contributions welcome.
+MIT license.

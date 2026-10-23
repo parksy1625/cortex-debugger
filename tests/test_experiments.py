@@ -100,3 +100,23 @@ def test_history_limit_is_validated(client):
     api,_=client
     assert api.get('/api/v1/experiments?limit=0').status_code == 422
     assert api.get('/api/v1/experiments?limit=51').status_code == 422
+
+
+def test_reopen_marks_interrupted_jobs_failed(tmp_path):
+    path = tmp_path / "restart.sqlite3"
+    manager = ExperimentManager(path, runner=lambda _args: {"status": "pass"})
+    manager.shutdown()
+    with sqlite3.connect(path) as conn:
+        for identifier, state in [("a" * 32, "queued"), ("b" * 32, "running")]:
+            conn.execute(
+                "INSERT INTO experiments VALUES (?, ?, ?, ?, ?, NULL, NULL)",
+                (identifier, state, "2026-01-01", "2026-01-01", "{}"),
+            )
+    recovered = ExperimentManager(path, runner=lambda _args: {"status": "pass"})
+    try:
+        for identifier in ("a" * 32, "b" * 32):
+            record = recovered.get(identifier)
+            assert record["status"] == "failed"
+            assert record["error"] == "Interrupted by worker restart"
+    finally:
+        recovered.shutdown()

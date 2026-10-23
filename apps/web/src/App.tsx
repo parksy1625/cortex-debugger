@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Activity, AlertCircle, BrainCircuit, CheckCircle2, ChevronRight, Cpu, Download, FlaskConical, History, Info, Layers, Play, RefreshCw, Square } from 'lucide-react';
+import { createRegressionManifest, validateManifestBounds, type RegressionManifest, type Submission, type Evidence } from './regressionManifest';
 import './styles.css';
 
 type Status = 'queued'|'running'|'completed'|'failed'|'cancelled';
 type Config = {device:string;layer:number;token_index:number;revision:string|null};
-type Result = {
- status:'pass'|'fail'; activation_rms_delta:number[][];
+type Result = Evidence & {
+ activation_rms_delta:number[][];
  scores:{clean:number;corrupted:number;patched:number;recovery:number|null};
  control:{max_abs_logit_delta:number;tolerance:number};
  patch:{layer:number;token_index:number;site:string};runtime_seconds?:number
 };
 type Experiment = {id:string;status:Status;created_at:string;configuration:Config;error:string|null;result:Result|null};
 type HistoryItem = Pick<Experiment,'id'|'status'|'created_at'|'configuration'>;
-type FormValues = {clean:string;corrupted:string;correct_token:string;incorrect_token:string;layer:number;token_index:number;device:'cpu'|'mps';revision:string};
+type FormValues = Submission;
 const starter:FormValues = {clean:'The dog runs',corrupted:'The cat runs',correct_token:' dog',incorrect_token:' cat',layer:5,token_index:2,device:'cpu',revision:''};
 const done = (s:Status) => ['completed','failed','cancelled'].includes(s);
 const number = (n:number|null|undefined,places=4) => typeof n==='number'&&Number.isFinite(n) ? n.toFixed(places) : '—';
@@ -40,6 +41,9 @@ export default function App(){
  const [error,setError]=useState('');
  const [pending,setPending]=useState(false);
  const [cell,setCell]=useState<[number,number]>([5,2]);
+ // Raw prompts are kept only in this in-memory session, never in SQLite.
+ const [submitted,setSubmitted]=useState<{id:string;form:FormValues}|null>(null);
+ const [manifest,setManifest]=useState<RegressionManifest|null>(null);
  const edit=<K extends keyof FormValues,>(name:K,value:FormValues[K])=>setForm(prev=>({...prev,[name]:value}));
  const loadHistory=useCallback(async()=>{try{setHistory((await api<{items:HistoryItem[]}>('/api/v1/experiments?limit=30')).items)}catch{/* health/errors shown elsewhere */}},[]);
  const loadJob=useCallback(async(id:string)=>{const result=await api<Experiment>('/api/v1/experiments/'+encodeURIComponent(id));setCurrent(result);if(done(result.status))void loadHistory()},[loadHistory]);
@@ -50,11 +54,33 @@ export default function App(){
   try{
    const req={...form,revision:form.revision.trim()||null};
    const job=await api<{id:string;status:Status;created_at:string}>('/api/v1/experiments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)});
+   setSubmitted({id:job.id,form:{...form}});
+   setManifest(null);
    setCurrent({...job,configuration:req,error:null,result:null});setCell([form.layer,form.token_index]);setTab('studio');setConnected(true);void loadHistory()
   }catch(e){setError(e instanceof Error?e.message:String(e))}finally{setPending(false)}
  };
  const cancel=async()=>{if(!current)return;try{await api('/api/v1/experiments/'+current.id+'/cancel',{method:'POST'});await loadJob(current.id)}catch(e){setError(String(e))}};
  const download=()=>{if(!current?.result)return;const url=URL.createObjectURL(new Blob([JSON.stringify(current,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='cortex-'+current.id.slice(0,8)+'.json';a.click();URL.revokeObjectURL(url)};
+ const generateManifest=async()=>{
+  setError('');
+  if(!current?.result||current.status!=='completed'||submitted?.id!==current.id){
+   setError('Manifest generation requires a completed experiment from this browser session. History does not preserve raw prompts.');return;
+  }
+  try { setManifest(await createRegressionManifest(submitted.form,current.result)); }
+  catch(e){setError(e instanceof Error?e.message:String(e))}
+ };
+ const editLimit=(name:keyof RegressionManifest['assertions'],value:number)=>{
+  setManifest(prev=>prev?{...prev,assertions:{...prev.assertions,[name]:value}}:prev);
+ };
+ const downloadManifest=()=>{
+  if(!manifest)return;
+  const problem=validateManifestBounds(manifest);
+  if(problem){setError(problem);return;}
+  const blob=new Blob([JSON.stringify(manifest,null,2)+'\\n'],{type:'application/json'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download='cortex-regression-'+(current?.id.slice(0,8)??'experiment')+'.json';
+  a.click();URL.revokeObjectURL(url);
+ };
  const busy=pending||Boolean(current&&!done(current.status));
  const result=current?.result; const rms=result?.activation_rms_delta?.[cell[0]]?.[cell[1]];
  return <div className="shell"><aside className="sidebar">
@@ -63,9 +89,9 @@ export default function App(){
  <button className={'side-link '+(tab==='studio'?'selected':'')} onClick={()=>setTab('studio')}><FlaskConical size={17}/> Experiment <ChevronRight size={15}/></button>
  <button className={'side-link '+(tab==='history'?'selected':'')} onClick={()=>{setTab('history');void loadHistory()}}><History size={17}/> History <small>{history.length}</small></button>
  <hr/><div className="aside-label">MODEL</div><div className="model"><Cpu size={18}/><div>GPT-2 Small<small>12 layers · local weights</small></div></div>
- <div className="aside-foot"><span className={'indicator '+(connected?'ok':'')}/>{connected?'Local API connected':'API offline'}<small>M2 · development preview</small></div>
- </aside><main><header><span>CORTEX / {tab==='studio'?'EXPERIMENT STUDIO':'HISTORY'}</span><div><span className="local-pill">LOCAL ONLY</span><span>v0.3.0-dev</span></div></header>
- <div className="content"><div className="heading"><div><div className="eyebrow">MECHANISTIC INTERPRETABILITY / M2</div><h1>{tab==='studio'?'Experiment studio':'Experiment history'}</h1><p>Compare model runs, intervene on residual activations, and inspect measured effects.</p></div><span className="model-pill"><Activity size={13}/> GPT-2 ENGINE</span></div>
+ <div className="aside-foot"><span className={'indicator '+(connected?'ok':'')}/>{connected?'Local API connected':'API offline'}<small>M4 · development preview</small></div>
+ </aside><main><header><span>CORTEX / {tab==='studio'?'EXPERIMENT STUDIO':'HISTORY'}</span><div><span className="local-pill">LOCAL ONLY</span><span>v0.5.0-dev</span></div></header>
+ <div className="content"><div className="heading"><div><div className="eyebrow">MECHANISTIC INTERPRETABILITY / M4</div><h1>{tab==='studio'?'Experiment studio':'Experiment history'}</h1><p>Compare model runs, intervene on residual activations, and inspect measured effects.</p></div><span className="model-pill"><Activity size={13}/> GPT-2 ENGINE</span></div>
  {error&&<div className="error" role="alert"><AlertCircle size={16}/>{error}<button onClick={()=>setError('')} aria-label="Dismiss">×</button></div>}
  {!connected&&<div className="notice"><Info size={15}/>API offline. Run <code>uvicorn apps.api.main:app --host 127.0.0.1 --port 8000</code> then refresh.</div>}
  {tab==='studio'?<><div className="studio">
@@ -85,8 +111,40 @@ export default function App(){
  <div className="empty"><span className="empty-icon"><Activity size={25}/></span><strong>{current?'Experiment '+current.status:'No results yet'}</strong><p>{current?.error??(current?'Model execution is pending or running.':'Run an experiment to see scores and activation changes.')}</p>{current?.status==='queued'&&<button className="secondary" onClick={cancel} type="button"><Square size={14}/> Cancel queued job</button>}</div>}</section>
  <section className="panel"><div className="result-head"><div><h2>Activation difference</h2><p>Residual stream · layer × token · RMS</p></div><span className="descriptive">DESCRIPTIVE</span></div>
  {result?<><Heatmap data={result.activation_rms_delta} selection={cell} onSelect={(l,t)=>{setCell([l,t]);edit('layer',l);edit('token_index',t)}}/><div className="pick"><b>Layer {cell[0]} · Token {cell[1]}</b><span>RMS {number(rms,6)} — Rerun to patch this location</span></div></>:<div className="heat-empty"><Layers size={22}/>Run an experiment to populate the heatmap</div>}</section>
- {result&&<button className="secondary export" onClick={download}><Download size={15}/> Export JSON evidence</button>}</div></div>
+ {result&&<button className="secondary export" onClick={download}><Download size={15}/> Export JSON evidence</button>}
+ <section className="panel regression-panel">
+  <div className="result-head"><div><h2>Regression test</h2><p>M3 JSON manifest · reviewed numerical bounds</p></div><span className="descriptive">LOCAL EXPORT</span></div>
+  <div className="regression-content">
+   <p>Create a pinned-model replay test from a verified experiment. The file stays in this browser until you choose to save it.</p>
+   <div className="privacy-warning"><AlertCircle size={16}/><span><strong>Contains raw prompts.</strong> Do not publish this manifest if prompts are private. Only successful runs from this browser session can be exported.</span></div>
+   {result&&current?.status==='completed'&&submitted?.id===current.id?
+     <button className="secondary regression-build" onClick={()=>void generateManifest()}>Prepare regression test</button>:
+     <p className="manifest-unavailable">Run a passing experiment here to enable manifest export. Saved history alone cannot reconstruct prompts.</p>}
+   {manifest&&<div className="manifest-editor" aria-label="Regression thresholds">
+     <p>Review these starting tolerances before saving. They are engineering defaults, not statistical confidence intervals.</p>
+     <div className="manifest-bounds">
+       {([
+         ['control_delta_max','MAX CONTROL DELTA'],
+         ['recovery_min','MIN RECOVERY'],
+         ['recovery_max','MAX RECOVERY'],
+         ['patched_margin_min','MIN PATCHED MARGIN'],
+         ['patched_margin_max','MAX PATCHED MARGIN'],
+       ] as const).map(([key,label])=><label key={key}>{label}
+         <input type="number" step="any" value={manifest.assertions[key]}
+           onChange={e=>editLimit(key,e.target.valueAsNumber)} />
+       </label>)}
+     </div>
+     <div className="manifest-actions">
+       <button className="primary" type="button" onClick={downloadManifest} disabled={Boolean(validateManifestBounds(manifest))}>
+         <Download size={15}/> Download regression JSON
+       </button>
+       <small>Replay with: <code>cortex verify your-file.json</code></small>
+     </div>
+     {validateManifestBounds(manifest)&&<div className="error">{validateManifestBounds(manifest)}</div>}
+   </div>}
+  </div>
+ </section></div></div>
  <div className="disclaimer"><Info size={16}/> A heatmap is descriptive, not causal proof. Patching results apply only to the exact model and inputs. Pin revision for future regression tests.</div></>:
- <section className="panel history-panel"><div className="result-head"><h2>Recent experiments</h2><button className="secondary" onClick={()=>void loadHistory()}><RefreshCw size={14}/> Refresh</button></div>{history.length?history.map(item=><button key={item.id} className="history-item" onClick={()=>{void loadJob(item.id).then(()=>{setTab('studio');setCell([item.configuration.layer,item.configuration.token_index])}).catch(e=>setError(String(e)))}}><History size={15}/><div><b>{item.id.slice(0,8)}</b><small>{new Date(item.created_at).toLocaleString()} · L{item.configuration.layer}/T{item.configuration.token_index}</small></div><span className={'status '+item.status}>{item.status}</span><ChevronRight size={15}/></button>):<div className="empty"><p>No local experiments yet.</p></div>}</section>}
+ <section className="panel history-panel"><div className="result-head"><h2>Recent experiments</h2><button className="secondary" onClick={()=>void loadHistory()}><RefreshCw size={14}/> Refresh</button></div>{history.length?history.map(item=><button key={item.id} className="history-item" onClick={()=>{setSubmitted(null);setManifest(null);void loadJob(item.id).then(()=>{setTab('studio');setCell([item.configuration.layer,item.configuration.token_index])}).catch(e=>setError(String(e)))}}><History size={15}/><div><b>{item.id.slice(0,8)}</b><small>{new Date(item.created_at).toLocaleString()} · L{item.configuration.layer}/T{item.configuration.token_index}</small></div><span className={'status '+item.status}>{item.status}</span><ChevronRight size={15}/></button>):<div className="empty"><p>No local experiments yet.</p></div>}</section>}
  </div></main></div>;
 }

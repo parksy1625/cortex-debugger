@@ -1,0 +1,47 @@
+name: Browser E2E
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/browser-e2e.yml'
+  pull_request:
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/browser-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        working-directory: apps/web
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+      - name: Production build
+        working-directory: apps/web
+        run: npm run build
+      - name: Browser tests
+        working-directory: apps/web
+        run: npm run test:e2e
+      - name: Upload Playwright trace and report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cortex-browser-e2e
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          if-no-files-found: ignore
