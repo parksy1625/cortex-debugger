@@ -1,0 +1,54 @@
+name: Generate dependency lockfiles
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lockfiles.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cortex-lockfiles-main
+  cancel-in-progress: false
+
+jobs:
+  lock:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: astral-sh/setup-uv@v6
+      - name: Resolve Python 3.11 Linux dependencies
+        run: |
+          uv pip compile pyproject.toml --extra api --extra ml --extra dev \
+            --python-version 3.11 \
+            --output-file requirements-linux-py311.lock
+      - name: Generate npm lockfile
+        working-directory: apps/web
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Verify the npm lockfile can install and build
+        working-directory: apps/web
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+      - name: Commit generated lockfiles
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add requirements-linux-py311.lock apps/web/package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(m7): lock Node and Linux Python dependencies"
+            git push origin HEAD:main
+          else
+            echo "Lockfiles already match checked-in content"
+          fi
