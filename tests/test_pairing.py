@@ -50,7 +50,7 @@ class FakeBridge:
         name, callback = fwd_hooks[0]
         layer = int(name.split(".")[1])
         original = self._activation(tokens, layer)
-        modified = callback(original, None)
+        modified = callback(original, hook=None)
         if layer == 1:
             return self._logits(tokens, modified=modified)
         return self._logits(tokens)
