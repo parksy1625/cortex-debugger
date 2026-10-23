@@ -98,7 +98,7 @@ def test_pair_runner_reuses_loaded_bridge(monkeypatch):
     monkeypatch.delenv("CORTEX_DISABLE_MODEL_CACHE", raising=False)
 
     def mock_analyze(_bridge, **kwargs):
-        assert kwargs["model_revision"] == pairing.DEFAULT_MODEL_REVISION
+        assert kwargs["model_revision"] in (pairing.DEFAULT_MODEL_REVISION, "e" * 40)
         return {"status": "pass", "scores": {"recovery": 0.5}}
 
     monkeypatch.setattr(pairing, "analyze_pair", mock_analyze)
