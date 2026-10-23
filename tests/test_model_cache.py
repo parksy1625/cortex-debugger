@@ -6,7 +6,6 @@ import sys
 from types import ModuleType
 
 import torch
-
 from cortex_engine.model_cache import SingleModelCache
 
 

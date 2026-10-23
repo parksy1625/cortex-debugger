@@ -6,12 +6,12 @@ import os
 import time
 
 import pytest
+from cortex_engine.model_cache import MODEL_CACHE
+from cortex_engine.pairing import DEFAULT_MODEL_REVISION
 from fastapi.testclient import TestClient
 
 from apps.api.experiments import ExperimentManager
 from apps.api.main import app
-from cortex_engine.model_cache import MODEL_CACHE
-from cortex_engine.pairing import DEFAULT_MODEL_REVISION
 
 pytestmark = pytest.mark.real_model
 
