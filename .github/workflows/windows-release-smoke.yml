@@ -63,9 +63,14 @@ jobs:
             throw "PowerShell launcher failed to start published bundle"
           }
           Write-Host "Packaged UI and API started successfully on loopback."
-      - name: Execute pinned GPT-2 Windows CPU intervention over installed HTTP API
-        shell: pwsh
-        run: python scripts/smoke_windows_bundle.py
+          # Windows Actions does not guarantee preserving a child subprocess
+          # between separate steps. Run actual inference before leaving this step.
+          & python scripts/smoke_windows_bundle.py
+          if ($LASTEXITCODE -ne 0) {
+            if (Test-Path $err) { Get-Content $err -Tail 55 }
+            if (Test-Path $log) { Get-Content $log -Tail 55 }
+            throw "Windows released ZIP model smoke failed"
+          }
       - name: Shut down local Windows process
         if: always()
         shell: pwsh
@@ -74,6 +79,7 @@ jobs:
           if (Test-Path $pidFile) {
             $processId = [int](Get-Content $pidFile)
             & taskkill.exe /T /F /PID $processId 2>$null
+            exit 0
           }
       - name: Upload redacted diagnostics only on failure
         if: failure()
