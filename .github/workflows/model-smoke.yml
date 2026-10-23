@@ -25,7 +25,7 @@ jobs:
         run: |
           cortex pair --clean 'The dog runs' --corrupted 'The cat runs' \
             --correct-token ' dog' --incorrect-token ' cat' \
-            --layer 5 --token-index 1 --device cpu \
+            --layer 5 --token-index 2 --device cpu \
             --output artifacts/model-smoke-pair.json
       - name: Upload the measured report even if earlier steps fail
         if: always()

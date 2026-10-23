@@ -13,7 +13,7 @@ type Result = {
 type Experiment = {id:string;status:Status;created_at:string;configuration:Config;error:string|null;result:Result|null};
 type HistoryItem = Pick<Experiment,'id'|'status'|'created_at'|'configuration'>;
 type FormValues = {clean:string;corrupted:string;correct_token:string;incorrect_token:string;layer:number;token_index:number;device:'cpu'|'mps';revision:string};
-const starter:FormValues = {clean:'The dog runs',corrupted:'The cat runs',correct_token:' dog',incorrect_token:' cat',layer:5,token_index:1,device:'cpu',revision:''};
+const starter:FormValues = {clean:'The dog runs',corrupted:'The cat runs',correct_token:' dog',incorrect_token:' cat',layer:5,token_index:2,device:'cpu',revision:''};
 const done = (s:Status) => ['completed','failed','cancelled'].includes(s);
 const number = (n:number|null|undefined,places=4) => typeof n==='number'&&Number.isFinite(n) ? n.toFixed(places) : '—';
 async function api<T>(path:string,init?:RequestInit):Promise<T> {
@@ -39,7 +39,7 @@ export default function App(){
  const [history,setHistory]=useState<HistoryItem[]>([]);
  const [error,setError]=useState('');
  const [pending,setPending]=useState(false);
- const [cell,setCell]=useState<[number,number]>([5,1]);
+ const [cell,setCell]=useState<[number,number]>([5,2]);
  const edit=<K extends keyof FormValues,>(name:K,value:FormValues[K])=>setForm(prev=>({...prev,[name]:value}));
  const loadHistory=useCallback(async()=>{try{setHistory((await api<{items:HistoryItem[]}>('/api/v1/experiments?limit=30')).items)}catch{/* health/errors shown elsewhere */}},[]);
  const loadJob=useCallback(async(id:string)=>{const result=await api<Experiment>('/api/v1/experiments/'+encodeURIComponent(id));setCurrent(result);if(done(result.status))void loadHistory()},[loadHistory]);
@@ -75,7 +75,7 @@ export default function App(){
  <label>CORRUPTED PROMPT <small>Target B</small><textarea value={form.corrupted} onChange={e=>edit('corrupted',e.target.value)} rows={3} required maxLength={600}/></label>
  <div className="columns"><label>CORRECT TOKEN<input value={form.correct_token} onChange={e=>edit('correct_token',e.target.value)} required maxLength={60}/></label><label>INCORRECT TOKEN<input value={form.incorrect_token} onChange={e=>edit('incorrect_token',e.target.value)} required maxLength={60}/></label></div>
  <div className="columns"><label>PATCH LAYER<input type="number" min="0" max="11" value={form.layer} onChange={e=>edit('layer',Number(e.target.value))} required/></label><label>TOKEN INDEX<input type="number" min="0" max="127" value={form.token_index} onChange={e=>edit('token_index',Number(e.target.value))} required/></label></div>
- <div className="columns"><label>COMPUTE<select value={form.device} onChange={e=>edit('device',e.target.value as 'cpu'|'mps')}><option value="cpu">CPU (portable)</option><option value="mps">Apple MPS</option></select></label><label>MODEL SHA (OPTIONAL)<input value={form.revision} onChange={e=>edit('revision',e.target.value)} placeholder="40-character commit SHA"/></label></div>
+ <div className="columns"><label>COMPUTE<select value={form.device} onChange={e=>edit('device',e.target.value as 'cpu'|'mps')}><option value="cpu">CPU (portable)</option><option value="mps">Apple MPS</option></select></label><label>MODEL SHA OVERRIDE<input value={form.revision} onChange={e=>edit('revision',e.target.value)} placeholder="Defaults to pinned GPT-2 SHA"/></label></div>
  <div className="hint"><Info size={15}/> Both inputs must tokenize to equal lengths; candidate strings must each be a single GPT-2 token.</div></div>
  <div className="form-foot"><button className="primary" disabled={busy||!connected}><Play size={15} fill="currentColor"/>{busy?'Experiment in progress':'Run experiment'}</button><small>1 running + up to 2 waiting</small></div></form>
  <div className="outputs"><section className="panel"><div className="result-head"><h2>Experiment results</h2><span className={'status '+(current?.status??'idle')}>{current?.status??'Awaiting run'}</span></div>

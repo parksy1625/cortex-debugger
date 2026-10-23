@@ -11,6 +11,7 @@ import time
 from cortex_engine.validation import validate_pair_lengths, validate_patch_coordinate
 
 MODEL_ID = "openai-community/gpt2"
+MODEL_REVISION = "607a30d783dfa663caf39e06633721c8d4cfcd7e"
 
 
 def self_patch_smoke(
@@ -36,7 +37,7 @@ def self_patch_smoke(
         raise RuntimeError('ML dependencies missing; install pip install -e ".[ml]"') from exc
 
     started = time.monotonic()
-    bridge = TransformerBridge.boot_transformers(MODEL_ID, device=device)
+    bridge = TransformerBridge.boot_transformers(MODEL_ID, device=device, revision=MODEL_REVISION)
     bridge.eval()
     token_ids = bridge.to_tokens(prompt)
     n_tokens = int(token_ids.shape[-1])
@@ -73,6 +74,7 @@ def self_patch_smoke(
         "schema_version": 1,
         "status": "pass" if max_abs_logit_delta <= 1e-4 else "fail",
         "model_id": MODEL_ID,
+        "model_revision": MODEL_REVISION,
         "device": device,
         "layer": layer,
         "token_index": token_index,

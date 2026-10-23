@@ -1,6 +1,6 @@
 # Cortex Debugger M2 — Local experiment studio
 
-**Status:** M2 integrated API + React experiment UI. **Real GPT-2/TransformerLens integration is not yet verified** in this execution environment. The 43 Python tests passed locally with a deterministic fake model runner. The frontend TypeScript source syntax was checked; a complete Node dependency build is pending GitHub CI.
+**Status:** M2 integrated API + React experiment UI. Real GPT-2 self-patching and paired-prompt smoke passed in [GitHub Actions run 39992051722](https://github.com/parksy1625/cortex-debugger/actions/runs/39992051722). The 43 Python tests passed locally with a deterministic fake model runner. The frontend TypeScript source syntax was checked; a complete Node dependency build is pending GitHub CI.
 
 ## Quick start
 
@@ -42,3 +42,7 @@ Heatmap colors represent RMS residual differences and are **not causal evidence*
 - Real model-backed smoke result from GitHub Actions and macOS MPS.
 - React browser/e2e build validation and actual model-run UI walkthrough.
 - M3 strict reproducible regression assertion runner; model revision may still be omitted.
+
+## Verified model revision
+
+The default GPT-2 revision is pinned to `607a30d783dfa663caf39e06633721c8d4cfcd7e` based on the official Hugging Face repository metadata. You may override with another exact 40-character commit, but results using different revisions must not be treated as identical baselines. The original smoke sample using an unchanged input token position recovered 0%; the default patch location has been moved to token index 2 for a nontrivial intervention test. Scientific interpretation remains out of scope.

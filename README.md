@@ -4,7 +4,7 @@
 
 M2 (v0.3.0-dev) integrates the GPT-2 paired-prompt activation patching engine, a FastAPI single-worker job queue, SQLite experiment metadata, and a React dashboard for launching experiments and viewing measured activation RMS differences, logit margins and self-patch controls.
 
-**Important:** The code has 43 local Python unit/integration tests using synthetic model output; the actual TransformerLens 4.2.0 + downloaded GPT-2 experiment has not yet been verified. The web UI is implemented, but its Node dependency build has not yet been confirmed in this environment. The model-smoke workflow remains opt-in and must be run before claiming scientific/model-backed correctness.
+**Validation:** The real GPT-2 self-patch and paired-prompt smoke checks passed on GitHub Actions run [39992051722](https://github.com/parksy1625/cortex-debugger/actions/runs/39992051722). Model weights are now pinned to the Hugging Face commit SHA 607a30d783dfa663caf39e06633721c8d4cfcd7e. The code also has 43 local Python unit/integration tests. The web UI is implemented, but its Node dependency build has not yet been confirmed in this environment. The sample smoke experiment proves the intervention machinery operates, not that the default patch has a scientifically meaningful causal explanation.
 
 ## Quick start
 

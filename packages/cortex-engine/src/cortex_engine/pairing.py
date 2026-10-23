@@ -15,6 +15,7 @@ from cortex_engine.metrics import logit_margin, recovery_score
 from cortex_engine.validation import validate_pair_lengths, validate_patch_coordinate
 
 MAX_TOKEN_COUNT = 128
+DEFAULT_MODEL_REVISION = "607a30d783dfa663caf39e06633721c8d4cfcd7e"
 
 
 def _candidate_id(bridge: Any, candidate: str) -> int:
@@ -175,6 +176,7 @@ def run_gpt2_pair(
         raise RuntimeError('ML dependencies missing; install pip install -e ".[ml]"') from exc
     torch.manual_seed(0)
     model_id = "openai-community/gpt2"
+    revision = revision or DEFAULT_MODEL_REVISION
     bridge = TransformerBridge.boot_transformers(model_id, device=device, revision=revision)
     bridge.eval()
     with torch.inference_mode():
