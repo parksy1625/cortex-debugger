@@ -7,7 +7,6 @@ import json
 from xml.etree import ElementTree
 
 import pytest
-
 from cortex_engine.cli import main
 from cortex_engine.regression import (
     evaluate,
