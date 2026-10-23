@@ -48,7 +48,7 @@ def _patch_from(source: Any, index: int):
     """Create a scoped, mutation-safe TransformerLens hook."""
     saved = source[:, index, :].detach().clone()
 
-    def patch(activation: Any, _hook: Any) -> Any:
+    def patch(activation: Any, hook: Any = None) -> Any:
         if activation.ndim != 3 or activation.shape[0] != 1 or not 0 <= index < activation.shape[1]:
             raise RuntimeError("Unexpected patch activation tensor shape")
         if activation.shape[-1] != saved.shape[-1]:

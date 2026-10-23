@@ -1,14 +1,17 @@
 """Local-only Cortex API. Bind to 127.0.0.1; do not expose unauthenticated endpoints."""
 from __future__ import annotations
+
 import os
 import re
 import threading
 from pathlib import Path
 from typing import Literal
-from fastapi import FastAPI, HTTPException, Query, Request
-from pydantic import BaseModel, Field, field_validator
+
 from cortex_engine import __version__
 from cortex_engine.metrics import logit_margin, recovery_score
+from fastapi import FastAPI, HTTPException, Query, Request
+from pydantic import BaseModel, Field, field_validator
+
 from apps.api.experiments import ExperimentManager, NotCancellable, QueueFull
 
 app = FastAPI(title="Cortex Debugger API", version=__version__, docs_url="/api/docs")

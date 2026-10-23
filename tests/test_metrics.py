@@ -1,7 +1,6 @@
 import math
 
 import pytest
-
 from cortex_engine.metrics import logit_margin, recovery_score
 
 

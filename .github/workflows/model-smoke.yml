@@ -2,6 +2,11 @@ name: Model smoke (manual)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/cortex-engine/src/cortex_engine/adapters/transformerlens.py'
+      - 'packages/cortex-engine/src/cortex_engine/pairing.py'
 
 jobs:
   gpt2-controls-and-pair:

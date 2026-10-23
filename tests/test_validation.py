@@ -1,5 +1,4 @@
 import pytest
-
 from cortex_engine.validation import validate_pair_lengths, validate_patch_coordinate
 
 

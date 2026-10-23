@@ -8,7 +8,7 @@ from __future__ import annotations
 import math
 import time
 
-from cortex_engine.validation import validate_patch_coordinate, validate_pair_lengths
+from cortex_engine.validation import validate_pair_lengths, validate_patch_coordinate
 
 MODEL_ID = "openai-community/gpt2"
 
@@ -53,7 +53,7 @@ def self_patch_smoke(
             raise RuntimeError(f"Required hook not emitted: {site}")
         source = cache[site][:, token_index, :].detach().clone()
 
-        def patch(activation, _hook):
+        def patch(activation, hook=None):
             if activation.ndim != 3 or activation.shape[0] != 1:
                 raise RuntimeError("Expected residual activation shape [1, tokens, hidden]")
             patched = activation.clone()

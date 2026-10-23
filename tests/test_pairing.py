@@ -6,7 +6,6 @@ from dataclasses import dataclass
 
 import pytest
 import torch
-
 from cortex_engine.pairing import analyze_pair
 
 

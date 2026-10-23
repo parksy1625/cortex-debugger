@@ -3,10 +3,12 @@ import json
 import sqlite3
 import threading
 import time
+
 import pytest
 from fastapi.testclient import TestClient
-from apps.api.main import app
+
 from apps.api.experiments import ExperimentManager
+from apps.api.main import app
 
 DATA = {"clean":"The dog runs","corrupted":"The cat runs",
         "correct_token":" dog","incorrect_token":" cat",
