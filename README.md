@@ -65,7 +65,7 @@ The observed model-backed reference is documented in
 A successful patch is a **local intervention result**, not a complete
 explanation of model reasoning.
 
-See [M3 regression guide](docs/M3_REGRESSION.md),
+Model-backed M3 CI evidence: [13/13 regression checks passed](https://github.com/parksy1625/cortex-debugger/actions/runs/39994357934) and [76 Python tests + web build passed](https://github.com/parksy1625/cortex-debugger/actions/runs/39994490378). The measurements and remaining limitations are recorded in [M3 validation report](docs/M3_VALIDATION.md).\n\nSee [M3 regression guide](docs/M3_REGRESSION.md),
 [M2 UI guide](docs/M2_STUDIO.md) and [known limitations](docs/LIMITATIONS.md).
 
 ## Project structure
