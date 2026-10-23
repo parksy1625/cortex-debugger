@@ -88,9 +88,7 @@ jobs:
       - name: Compile self-contained Windows GUI launcher
         shell: pwsh
         run: |
-          dotnet publish native/windows/CortexDebuggerLauncher.csproj -c Release -r win-x64 \
-            --self-contained true -p:PublishSingleFile=true \
-            -o "$env:RUNNER_TEMP/cortex-m9-exe"
+          dotnet publish native/windows/CortexDebuggerLauncher.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o "$env:RUNNER_TEMP/cortex-m9-exe"
           if ($LASTEXITCODE -ne 0) { throw "Native Windows launcher compilation failed" }
           if (-not (Test-Path "$env:RUNNER_TEMP/cortex-m9-exe/CortexDebugger.exe")) {
             throw "Windows launcher EXE missing"
@@ -109,7 +107,7 @@ jobs:
           $zipPath = Join-Path $env:GITHUB_WORKSPACE "artifacts/Cortex-Debugger-Windows-v0.9.0-rc1.zip"
           Compress-Archive -Path (Join-Path $portable "*") -DestinationPath $zipPath -CompressionLevel Optimal
           $hash = (Get-FileHash -Algorithm SHA256 $zipPath).Hash.ToLowerInvariant()
-          "$hash  Cortex-Debugger-Windows-v0.9.0-rc1.zip" | Set-Content "$zipPath.sha256" -Encoding ascii
+          "$hash  Cortex-Debugger-Windows-v0.9.0-rc1.zip" | Set-Content "$zipPath.sha256" -Encoding ascii -NoNewline
           Write-Host "Windows GUI launcher compiled and package self-test passed."
       - uses: actions/upload-artifact@v4
         with:
