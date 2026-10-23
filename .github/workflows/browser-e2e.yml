@@ -27,9 +27,8 @@ jobs:
       - name: Install dependencies
         working-directory: apps/web
         run: npm install --no-audit --no-fund
-      - name: Install Chromium
-        working-directory: apps/web
-        run: npx playwright install --with-deps chromium
+      - name: Use runner-provided Chrome (avoid redundant browser download)
+        run: google-chrome --version
       - name: Production build
         working-directory: apps/web
         run: npm run build
