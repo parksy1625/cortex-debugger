@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Activity, AlertCircle, BrainCircuit, CheckCircle2, ChevronRight, Cpu, Download, FlaskConical, History, Info, Layers, Play, RefreshCw, Square } from 'lucide-react';
+import { Activity, AlertCircle, BrainCircuit, CheckCircle2, ChevronRight, Cpu, Download, FlaskConical, History, Info, Layers, Play, RefreshCw, Square, Trash2 } from 'lucide-react';
 import { createRegressionManifest, validateManifestBounds, type RegressionManifest, type Submission, type Evidence } from './regressionManifest';
 import './styles.css';
 
@@ -61,6 +61,25 @@ export default function App(){
  };
  const cancel=async()=>{if(!current)return;try{await api('/api/v1/experiments/'+current.id+'/cancel',{method:'POST'});await loadJob(current.id)}catch(e){setError(String(e))}};
  const download=()=>{if(!current?.result)return;const url=URL.createObjectURL(new Blob([JSON.stringify(current,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='cortex-'+current.id.slice(0,8)+'.json';a.click();URL.revokeObjectURL(url)};
+ const downloadShareable=async()=>{
+  if(!current)return;
+  setError('');
+  try {
+   const report=await api<Record<string,unknown>>('/api/v1/experiments/'+current.id+'/shareable');
+   const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}));
+   const a=document.createElement('a');a.href=url;a.download='cortex-shareable-'+current.id.slice(0,8)+'.json';a.click();URL.revokeObjectURL(url);
+  } catch(e){setError(e instanceof Error?e.message:String(e))}
+ };
+ const deleteRecord=async(id:string)=>{
+  if(!window.confirm('Delete this local experiment record? SQLite backups may retain earlier copies.'))return;
+  setError('');
+  try {
+   const response=await fetch('/api/v1/experiments/'+id,{method:'DELETE'});
+   if(!response.ok)throw new Error(response.status===409?'Cancel the running job before deletion.':'Unable to delete experiment.');
+   if(current?.id===id){setCurrent(null);setSubmitted(null);setManifest(null)}
+   await loadHistory();
+  } catch(e){setError(e instanceof Error?e.message:String(e))}
+ };
  const generateManifest=async()=>{
   setError('');
   if(!current?.result||current.status!=='completed'||submitted?.id!==current.id){
@@ -111,7 +130,10 @@ export default function App(){
  <div className="empty"><span className="empty-icon"><Activity size={25}/></span><strong>{current?'Experiment '+current.status:'No results yet'}</strong><p>{current?.error??(current?'Model execution is pending or running.':'Run an experiment to see scores and activation changes.')}</p>{(current?.status==='queued'||current?.status==='running')&&<button className="secondary" onClick={cancel} type="button"><Square size={14}/> Cancel experiment</button>}</div>}</section>
  <section className="panel"><div className="result-head"><div><h2>Activation difference</h2><p>Residual stream · layer × token · RMS</p></div><span className="descriptive">DESCRIPTIVE</span></div>
  {result?<><Heatmap data={result.activation_rms_delta} selection={cell} onSelect={(l,t)=>{setCell([l,t]);edit('layer',l);edit('token_index',t)}}/><div className="pick"><b>Layer {cell[0]} · Token {cell[1]}</b><span>RMS {number(rms,6)} — Rerun to patch this location</span></div></>:<div className="heat-empty"><Layers size={22}/>Run an experiment to populate the heatmap</div>}</section>
- {result&&<button className="secondary export" onClick={download}><Download size={15}/> Export JSON evidence</button>}
+ {result&&<div className="export-actions">
+ <button className="secondary export" onClick={download}><Download size={15}/> Export full evidence (token IDs)</button>
+ {current?.status==='completed'&&<button className="secondary export" onClick={()=>void downloadShareable()}><Download size={15}/> Export redacted summary</button>}
+ </div>}
  <section className="panel regression-panel">
   <div className="result-head"><div><h2>Regression test</h2><p>M3 JSON manifest · reviewed numerical bounds</p></div><span className="descriptive">LOCAL EXPORT</span></div>
   <div className="regression-content">
@@ -145,6 +167,9 @@ export default function App(){
   </div>
  </section></div></div>
  <div className="disclaimer"><Info size={16}/> A heatmap is descriptive, not causal proof. Patching results apply only to the exact model and inputs. Pin revision for future regression tests.</div></>:
- <section className="panel history-panel"><div className="result-head"><h2>Recent experiments</h2><button className="secondary" onClick={()=>void loadHistory()}><RefreshCw size={14}/> Refresh</button></div>{history.length?history.map(item=><button key={item.id} className="history-item" onClick={()=>{setSubmitted(null);setManifest(null);void loadJob(item.id).then(()=>{setTab('studio');setCell([item.configuration.layer,item.configuration.token_index])}).catch(e=>setError(String(e)))}}><History size={15}/><div><b>{item.id.slice(0,8)}</b><small>{new Date(item.created_at).toLocaleString()} · L{item.configuration.layer}/T{item.configuration.token_index}</small></div><span className={'status '+item.status}>{item.status}</span><ChevronRight size={15}/></button>):<div className="empty"><p>No local experiments yet.</p></div>}</section>}
+ <section className="panel history-panel"><div className="result-head"><h2>Recent experiments</h2><button className="secondary" onClick={()=>void loadHistory()}><RefreshCw size={14}/> Refresh</button></div>{history.length?history.map(item=><div key={item.id} className="history-item">
+ <button className="history-open" onClick={()=>{setSubmitted(null);setManifest(null);void loadJob(item.id).then(()=>{setTab('studio');setCell([item.configuration.layer,item.configuration.token_index])}).catch(e=>setError(String(e)))}}><History size={15}/><div><b>{item.id.slice(0,8)}</b><small>{new Date(item.created_at).toLocaleString()} · L{item.configuration.layer}/T{item.configuration.token_index}</small></div><span className={'status '+item.status}>{item.status}</span><ChevronRight size={15}/></button>
+ <button className="delete-record" title="Delete local record" aria-label={'Delete experiment '+item.id.slice(0,8)} onClick={()=>void deleteRecord(item.id)}><Trash2 size={15}/></button>
+ </div>):<div className="empty"><p>No local experiments yet.</p></div>}</section>}
  </div></main></div>;
 }

@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
 
 from apps.api.experiments import ExperimentManager, NotCancellable, QueueFull
+from apps.api.privacy import shareable_report
 
 app = FastAPI(title="Cortex Debugger API", version=__version__, docs_url="/api/docs")
 _manager_lock = threading.Lock()
@@ -99,6 +100,31 @@ def get_experiment(experiment_id: str, request: Request) -> dict:
     if item is None:
         raise HTTPException(status_code=404, detail="Experiment not found")
     return item
+
+@app.get("/api/v1/experiments/{experiment_id}/shareable")
+def export_shareable(experiment_id: str, request: Request) -> dict:
+    if re.fullmatch(r"[0-9a-f]{32}", experiment_id) is None:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+    item = get_manager(request).get(experiment_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+    try:
+        return shareable_report(item)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.delete("/api/v1/experiments/{experiment_id}", status_code=204)
+def delete_experiment(experiment_id: str, request: Request) -> None:
+    if re.fullmatch(r"[0-9a-f]{32}", experiment_id) is None:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+    try:
+        get_manager(request).delete(experiment_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Experiment not found") from exc
+    except NotCancellable as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
 
 @app.post("/api/v1/experiments/{experiment_id}/cancel")
 def cancel_experiment(experiment_id: str, request: Request) -> dict:
