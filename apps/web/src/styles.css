@@ -23,3 +23,15 @@ main{flex:1;min-width:0}header{border-bottom:1px solid #263547;height:70px;displ
 .manifest-actions code{color:#a7dffc;word-break:break-all}
 .manifest-editor .error{margin-top:12px}
 @media(max-width:600px){.manifest-bounds{grid-template-columns:1fr}}
+
+/* M7 privacy controls: keep history actions accessible without nesting buttons. */
+.history-item{padding:0;display:flex;align-items:stretch}
+.history-open{display:flex;align-items:center;gap:12px;min-width:0;flex:1;text-align:left;background:transparent;border:0;color:#b8ccde;padding:16px 15px 16px 21px}
+.history-open:hover{background:#203249}
+.history-open>div{min-width:0;flex:1}
+.history-open b{display:block;font-size:12px}
+.history-open small{display:block;font-size:10px;color:#859aaf;margin-top:5px}
+.delete-record{border:0;background:transparent;color:#c39a9c;padding:0 18px;flex-shrink:0}
+.delete-record:hover{background:#492d35;color:#ffe1dc}
+.export-actions{display:flex;flex-wrap:wrap;gap:9px}
+.export-actions .export{flex:1;min-width:180px}

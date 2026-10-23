@@ -21,3 +21,8 @@ artifacts/
 # M4 browser testing
 playwright-report/
 test-results/
+
+# Local experiment databases and benchmark-generated files
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm

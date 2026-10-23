@@ -59,7 +59,7 @@ class ExperimentRequest(BaseModel):
 
 @app.get("/api/v1/health")
 def health() -> dict:
-    return {"status": "ok", "stage": "M6", "version": __version__, "local_only": True}
+    return {"status": "ok", "stage": "M7", "version": __version__, "local_only": True}
 
 @app.get("/api/v1/models")
 def models(request: Request) -> dict:

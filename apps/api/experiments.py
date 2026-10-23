@@ -139,6 +139,23 @@ class ExperimentManager:
                 if self.active_job == experiment_id:
                     self.active_job = None
 
+    def delete(self, experiment_id: str) -> bool:
+        """Delete a terminal experiment record; no secure disk overwrite promise.
+
+        Running and queued jobs must be cancelled/finished first. sqlite WAL,
+        filesystem snapshots and backups can still retain old bytes.
+        """
+        with self.lock:
+            record = self.get(experiment_id)
+            if record is None:
+                raise KeyError(experiment_id)
+            if record["status"] in ("queued", "running"):
+                raise NotCancellable("Cancel or finish the job before deleting its record")
+            with self._db() as conn:
+                cursor = conn.execute("DELETE FROM experiments WHERE id=?", (experiment_id,))
+            self.futures.pop(experiment_id, None)
+            return cursor.rowcount == 1
+
     def model_status(self) -> dict[str, Any]:
         if self.worker is not None:
             return self.worker.status()

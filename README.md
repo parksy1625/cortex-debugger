@@ -1,31 +1,29 @@
 # Cortex Debugger
 
-**AI model activation debugger and reproducible regression workbench.**
+**Local-first AI model debugger and pinned GPT-2 regression workbench.**
 
-M6 / v0.7.0-dev adds **isolated GPT-2 execution** to the validated
-M5 model cache, React experiment studio and pinned-model regression runner.
+M7 (v0.8.0-dev) adds practical privacy management and repeatable performance
+measurement to M6 subprocess isolation, M5 caching, and the M3 regression gate.
 
-## Capabilities
+## Features
 
-- Compare a clean vs corrupted prompt and patch one residual activation.
-- Visualize layer×token differences, logit margins and self-patch control.
-- Create validated, versioned regression JSON from the browser (contains
-  raw prompts; keep private inputs out of public repositories).
-- Re-run the pinned model with `cortex verify`, emit JUnit and fail CI
-  on out-of-bound changes.
-- **M6: one persistent model subprocess, one running job + two queued**.
-  Running model work can be cancelled by killing its isolated worker.
-- **M6: enforce per-job deadline** (default 180s) and optional sampled
-  process RSS memory budget. A new task restarts a killed worker.
-- SQLite stores derived model evidence and status without saving raw prompts.
+- Clean/corrupted prompt activation patching with layer/token heatmap.
+- Pinned GPT-2 real-model replay with strict numeric assertions and JUnit CI.
+- Local React studio, FastAPI/SQLite history, bounded queue, live cancellation,
+  180s default deadline and optional sampled RSS budget.
+- **M7: Shareable redacted summaries** exclude raw prompts, token IDs,
+  prompt hashes, experiment IDs and file paths.
+- **M7: Delete terminal experiment records** through History with confirmation.
+  This is logical SQLite deletion, **not secure wiping of snapshots/WAL/backups**.
+- **M7: measured cold/warm benchmark** (subprocess wall clock, cache-hit,
+  model-load time and sampled worker RSS) with GitHub Actions artifact.
 
-## Local development
+## Run locally
 
-Python 3.11+, Node 22+:
+Requires Python 3.11+, Node.js 22+:
 
 ```bash
-python -m pip install -e '.[dev,api,ml]'
-pytest -q
+python -m pip install -e '.[ml,api,dev]'
 python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -33,16 +31,10 @@ python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000
 cd apps/web
 npm install
 npm run dev
-# Open http://127.0.0.1:5173
+# http://127.0.0.1:5173
 ```
 
-Set `CORTEX_JOB_TIMEOUT_SECONDS=180` and optionally
-`CORTEX_WORKER_MEMORY_MB=0`. A value of 0 disables the RSS guard.
-Use exactly **one** API server process: each additional worker has its
-own queue and model subprocess. This is a localhost-only unauthenticated
-research tool; **do not expose it on the network**.
-
-## Regression CI
+For deterministic model-replay assertions:
 
 ```bash
 cortex validate experiments/regression/gpt2-dog-cat.json
@@ -50,15 +42,25 @@ cortex verify experiments/regression/gpt2-dog-cat.json \
   --report artifacts/regression.json --junit artifacts/regression.xml
 ```
 
-`--artifact` is an **offline** check: it does not rerun GPT-2.
-**M6 CI validation succeeded:** [86 Python tests + React build](https://github.com/parksy1625/cortex-debugger/actions/runs/40002751276),
-[real GPT-2 API + browser E2E](https://github.com/parksy1625/cortex-debugger/actions/runs/40002751327).
-See the [full M6 verification report](docs/M6_VALIDATION.md).
+For cold/warm performance (real model weights will download on first use):
 
-See [M6 isolation and resource limits](docs/M6_ISOLATION.md),
-[M5 real-model validation](docs/M5_VALIDATION.md),
-[M4 CPU/MPS measurements](docs/M4_VALIDATION.md) and
-[known limitations](docs/LIMITATIONS.md).
+```bash
+python scripts/benchmark_model.py --runs 3 --device cpu
+```
 
-CI must run on each change. Actual throughput and memory savings must be
-measured before making quantitative performance claims.
+The benchmark ratio is **one measured example**, not a general acceleration
+claim. Mac MPS results require running on genuine Apple hardware.
+
+## Privacy and security
+
+This is a localhost-only unauthenticated research tool. **Do not expose it to
+the network.** Shareable summaries still contain aggregate scores; review
+before sharing. JSON regression manifests contain **raw prompts**. Full
+experiment evidence may contain token IDs that reveal prompt information.
+
+Docs: [M7 privacy and benchmark](docs/M7_PRIVACY_BENCHMARK.md) ·
+[M6 worker safety](docs/M6_ISOLATION.md) ·
+[M5 real-model validation](docs/M5_VALIDATION.md) ·
+[M4 Apple MPS](docs/M4_VALIDATION.md).
+
+MIT License.

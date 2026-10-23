@@ -52,9 +52,11 @@ class ModelProcess:
         self.lock = threading.RLock()
         self.model_loads = 0
         self.cache_hits = 0
+        self.peak_rss_bytes = 0
         self.cached: dict[str, Any] | None = None
 
     def _launch(self) -> None:
+        self.peak_rss_bytes = 0
         self.messages = queue.Queue()
         self.process = subprocess.Popen(
             self.command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -140,7 +142,9 @@ class ModelProcess:
             if time.monotonic() >= deadline:
                 self.stop()
                 raise WorkerTimeout("Model execution exceeded configured deadline")
-            if self.memory_limit_mb and self._memory_bytes(child) > self.memory_limit_mb * 1024 * 1024:
+            sample_bytes = self._memory_bytes(child)
+            self.peak_rss_bytes = max(self.peak_rss_bytes, sample_bytes)
+            if self.memory_limit_mb and sample_bytes > self.memory_limit_mb * 1024 * 1024:
                 self.stop()
                 raise WorkerMemoryExceeded("Model process exceeded configured RSS budget")
             try:
@@ -202,5 +206,6 @@ class ModelProcess:
             "isolated": True,
             "worker_pid": child.pid if child and child.poll() is None else None,
             "memory_budget_mb": self.memory_limit_mb,
+            "sampled_peak_worker_rss_mb": round(self.peak_rss_bytes / (1024 * 1024), 2),
             "timeout_seconds": self.timeout_seconds,
         }
