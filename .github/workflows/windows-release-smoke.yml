@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/windows-release-smoke.yml'
       - 'scripts/smoke_windows_bundle.py'
+      - 'native/windows/**'
   workflow_dispatch:
 
 permissions:
@@ -81,6 +82,42 @@ jobs:
             & taskkill.exe /T /F /PID $processId 2>$null
             exit 0
           }
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Compile self-contained Windows GUI launcher
+        shell: pwsh
+        run: |
+          dotnet publish native/windows/CortexDebuggerLauncher.csproj -c Release -r win-x64 \
+            --self-contained true -p:PublishSingleFile=true \
+            -o "$env:RUNNER_TEMP/cortex-m9-exe"
+          if ($LASTEXITCODE -ne 0) { throw "Native Windows launcher compilation failed" }
+          if (-not (Test-Path "$env:RUNNER_TEMP/cortex-m9-exe/CortexDebugger.exe")) {
+            throw "Windows launcher EXE missing"
+          }
+      - name: Create portable GUI bundle from clean public ZIP
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "cortex-m9-windows"
+          $original = Join-Path $dir "Cortex-Debugger-v0.9.0-rc1.zip"
+          $portable = Join-Path $dir "portable"
+          Expand-Archive -LiteralPath $original -DestinationPath $portable -Force
+          Copy-Item "$env:RUNNER_TEMP/cortex-m9-exe/CortexDebugger.exe" -Destination (Join-Path $portable "CortexDebugger.exe")
+          & (Join-Path $portable "CortexDebugger.exe") --self-test
+          if ($LASTEXITCODE -ne 0) { throw "Native launcher portability self-test failed" }
+          New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE/artifacts" -Force | Out-Null
+          $zipPath = Join-Path $env:GITHUB_WORKSPACE "artifacts/Cortex-Debugger-Windows-v0.9.0-rc1.zip"
+          Compress-Archive -Path (Join-Path $portable "*") -DestinationPath $zipPath -CompressionLevel Optimal
+          $hash = (Get-FileHash -Algorithm SHA256 $zipPath).Hash.ToLowerInvariant()
+          "$hash  Cortex-Debugger-Windows-v0.9.0-rc1.zip" | Set-Content "$zipPath.sha256" -Encoding ascii
+          Write-Host "Windows GUI launcher compiled and package self-test passed."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cortex-Debugger-Windows-rc1
+          path: |
+            artifacts/Cortex-Debugger-Windows-v0.9.0-rc1.zip
+            artifacts/Cortex-Debugger-Windows-v0.9.0-rc1.zip.sha256
+          if-no-files-found: error
       - name: Upload redacted diagnostics only on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -90,3 +127,21 @@ jobs:
             ${{ runner.temp }}/cortex-m9-windows/server.log
             ${{ runner.temp }}/cortex-m9-windows/server-error.log
           if-no-files-found: ignore
+
+  publish-windows:
+    needs: windows-x64
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Cortex-Debugger-Windows-rc1
+          path: assets
+      - name: Attach tested portable Windows bundle to prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd assets
+          sha256sum -c *.sha256
+          gh release upload v0.9.0-rc1 *.zip *.sha256 --repo parksy1625/cortex-debugger --clobber
