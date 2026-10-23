@@ -69,7 +69,7 @@ test('historical experiments never reconstruct raw prompts',async({page})=>{
  await page.goto('/');
  await page.getByRole('button',{name:'History'}).click();
  await expect(page.getByText(ID.slice(0,8))).toBeVisible();
- await page.getByRole('button',{name:new RegExp(ID.slice(0,8))}).click();
+ await page.getByRole('button',{name:new RegExp('^'+ID.slice(0,8))}).click();
  await expect(page.getByText('Saved history alone cannot reconstruct prompts.')).toBeVisible();
  await expect(page.getByRole('button',{name:'Prepare regression test'})).toHaveCount(0);
 });
