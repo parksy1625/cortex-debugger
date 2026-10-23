@@ -10,6 +10,7 @@ from typing import Literal
 from cortex_engine import __version__
 from cortex_engine.metrics import logit_margin, recovery_score
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from apps.api.experiments import ExperimentManager, NotCancellable, QueueFull
@@ -60,7 +61,7 @@ class ExperimentRequest(BaseModel):
 
 @app.get("/api/v1/health")
 def health() -> dict:
-    return {"status": "ok", "stage": "M7", "version": __version__, "local_only": True}
+    return {"status": "ok", "stage": "M8", "version": __version__, "local_only": True}
 
 @app.get("/api/v1/models")
 def models(request: Request) -> dict:
@@ -137,3 +138,24 @@ def cancel_experiment(experiment_id: str, request: Request) -> dict:
     except NotCancellable as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return {"id": experiment_id, "status": "cancelled"}
+
+
+def mount_built_studio(target_app: FastAPI, web_dir: Path | None = None) -> bool:
+    """Serve the compiled local web app; never attempt to serve source files.
+
+    API routes are registered *before* the static catch-all mount.
+    There is no external service, public binding or automatic upload.
+    """
+    location = web_dir or Path(
+        os.environ.get(
+            "CORTEX_WEB_DIST",
+            str(Path(__file__).resolve().parents[1] / "web" / "dist"),
+        )
+    )
+    if not (location / "index.html").is_file():
+        return False
+    target_app.mount("/", StaticFiles(directory=str(location), html=True), name="studio")
+    return True
+
+
+mount_built_studio(app)

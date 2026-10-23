@@ -1,0 +1,121 @@
+name: Local bundle and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v0.9.0-rc1']
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'scripts/build_release.py'
+      - 'launchers/**'
+      - 'docs/M8_RELEASE.md'
+      - '.github/workflows/bundle-release.yml'
+      - 'pyproject.toml'
+      - 'requirements-linux-py311.lock'
+  pull_request:
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'scripts/build_release.py'
+      - 'launchers/**'
+      - '.github/workflows/bundle-release.yml'
+      - 'pyproject.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build Python wheel
+        run: |
+          python -m pip install build
+          python -m build --wheel --outdir dist
+      - name: Compile actual production UI
+        working-directory: apps/web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: Create distributable ZIP + SHA-256 checksum
+        run: |
+          python -m scripts.build_release
+          cd artifacts
+          sha256sum -c *.sha256
+      - name: Extract exactly the uploaded ZIP for smoke testing
+        run: |
+          python -m zipfile -e artifacts/Cortex-Debugger-v0.9.0-rc1.zip /tmp/cortex-m8-extracted
+          test -f /tmp/cortex-m8-extracted/apps/web/dist/index.html
+          test -f /tmp/cortex-m8-extracted/start.sh
+          python -m venv /tmp/cortex-m8-venv
+      - name: Install bundled wheel in clean environment
+        run: |
+          /tmp/cortex-m8-venv/bin/python -m pip install 'torch==2.7.1' --index-url https://download.pytorch.org/whl/cpu
+          WHEEL=$(find /tmp/cortex-m8-extracted/wheel -name '*.whl' -print -quit)
+          /tmp/cortex-m8-venv/bin/python -m pip install "${WHEEL}[ml,api]" -c /tmp/cortex-m8-extracted/requirements-linux-py311.lock
+      - name: Boot extracted ZIP and verify same-origin UI/API
+        run: |
+          cd /tmp/cortex-m8-extracted
+          CORTEX_DATA_DIR=/tmp/cortex-m8-data /tmp/cortex-m8-venv/bin/python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000 >/tmp/cortex-m8-server.log 2>&1 &
+          echo $! >/tmp/cortex-m8-server.pid
+          curl --retry 30 --retry-delay 2 --retry-connrefused -f http://127.0.0.1:8000/api/v1/health
+          curl -f http://127.0.0.1:8000/ | grep -q '<div id="root"'
+          curl -f http://127.0.0.1:8000/api/v1/models | grep -q 'openai-community/gpt2'
+      - name: Real model via packaged UI and FastAPI
+        working-directory: apps/web
+        env:
+          CORTEX_LIVE_MODEL: '1'
+        run: npx playwright test tests/live-model.spec.ts --config playwright.release.config.ts
+      - name: Stop extracted app
+        if: always()
+        run: |
+          if [ -f /tmp/cortex-m8-server.pid ]; then kill "$(cat /tmp/cortex-m8-server.pid)" || true; fi
+      - name: Upload verified local release candidate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cortex-Debugger-v0.9.0-rc1
+          path: |
+            artifacts/Cortex-Debugger-v0.9.0-rc1.zip
+            artifacts/Cortex-Debugger-v0.9.0-rc1.zip.sha256
+          if-no-files-found: warn
+      - name: Upload packaging test trace on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cortex-release-failure
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+            /tmp/cortex-m8-server.log
+          if-no-files-found: ignore
+
+  publish-tagged-release:
+    needs: bundle-smoke
+    if: github.ref == 'refs/tags/v0.9.0-rc1'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Cortex-Debugger-v0.9.0-rc1
+          path: artifacts
+      - name: Publish verified ZIP and checksum to GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd artifacts
+          sha256sum -c *.sha256
+          gh release create "$GITHUB_REF_NAME" ./*.zip ./*.sha256 --title "Cortex Debugger $GITHUB_REF_NAME" --notes "M8 local runtime release candidate: compiled UI + Python wheel + launch scripts; dependencies and GPT-2 weights download on first install. Localhost only." --prerelease

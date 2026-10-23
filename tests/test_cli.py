@@ -6,7 +6,7 @@ from cortex_engine.cli import main
 def test_info(capsys):
     assert main(["info"]) == 0
     out = json.loads(capsys.readouterr().out)
-    assert out["stage"] == "M7"
+    assert out["stage"] == "M8"
 
 
 def test_score(capsys):

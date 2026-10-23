@@ -26,3 +26,6 @@ test-results/
 *.sqlite3
 *.sqlite3-wal
 *.sqlite3-shm
+
+# M8 runtime archive generated in CI
+*.zip.sha256

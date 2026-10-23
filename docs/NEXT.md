@@ -1,14 +1,14 @@
-# M7 follow-up roadmap
+# After M8
 
-1. Verify private-data redaction, record deletion and browser E2E checks.
-2. Read measured 3-run CPU benchmark artifact, record timings and sampled
-   RSS with explicit hardware/environment caveats.
-3. Completed: npm package-lock, Linux 3.11 version constraints, npm ci
-   and constrained Python installs passed CI. Next: hashes, platform-specific
-   macOS/Windows locks, reproducible wheels and installer packages.
-4. Add redacted shareable reports to exact end-to-end real-model Chromium flow.
-5. Add automatic retention policies with opt-in controls, SQLite VACUUM
-   and backup guidance (do not promise secure erase).
-6. Add true OS memory hard limits and IPC response byte ceilings;
-   benchmark Apple MPS cold/warm latencies.
-7. Package a standalone local installer and signed releases.
+1. Verify the produced ZIP on a fresh Linux runner: install its engine wheel
+   in a clean venv, serve packaged static UI + local API on port 8000, and
+   complete real GPT-2 Chromium end-to-end test.
+2. Add separate macOS Apple Silicon and Windows bundle smoke workflows, and
+   native environment lockfile validation.
+3. Publish a v0.9.0-rc1 GitHub Release from a tag only after package smoke
+   tests pass. Sign or attest release assets and document SHA-256 validation.
+4. Improve prompt/token privacy, platform-native installers and notarization.
+5. Make model loading/cancellation progress user friendly; profile peak
+   memory and cold/warm startup across hardware.
+6. Introduce a limited IPC response byte ceiling and OS memory cgroups/jobs.
+7. Expand beyond GPT-2 only after adapter-level scientific tests.
