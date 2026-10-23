@@ -1,0 +1,2 @@
+# Tested Linux CPU torch baseline
+torch==2.7.1
