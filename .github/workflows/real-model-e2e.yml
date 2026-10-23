@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
-      CORTEX_DATA_DIR: ${{ runner.temp }}/cortex-m5-e2e
+      CORTEX_DATA_DIR: /tmp/cortex-m5-e2e
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -52,8 +52,8 @@ jobs:
         run: pytest -q -m real_model tests/test_live_model_api.py
       - name: Start local API server
         run: |
-          python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000 > ${{ runner.temp }}/cortex-api.log 2>&1 &
-          echo $! > ${{ runner.temp }}/cortex-api.pid
+          python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000 > /tmp/cortex-api.log 2>&1 &
+          echo $! > /tmp/cortex-api.pid
           curl --retry 30 --retry-delay 2 --retry-connrefused --fail http://127.0.0.1:8000/api/v1/health
       - name: Drive actual GPT-2 through React and browser
         working-directory: apps/web
@@ -63,8 +63,8 @@ jobs:
       - name: Stop local API server
         if: always()
         run: |
-          if [ -f ${{ runner.temp }}/cortex-api.pid ]; then
-            kill "$(cat ${{ runner.temp }}/cortex-api.pid)" || true
+          if [ -f /tmp/cortex-api.pid ]; then
+            kill "$(cat /tmp/cortex-api.pid)" || true
           fi
       - name: Save failure evidence (may contain token IDs)
         if: failure()
@@ -74,5 +74,5 @@ jobs:
           path: |
             apps/web/test-results/
             apps/web/playwright-report/
-            ${{ runner.temp }}/cortex-api.log
+            /tmp/cortex-api.log
           if-no-files-found: ignore
