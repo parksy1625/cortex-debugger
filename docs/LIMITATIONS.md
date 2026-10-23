@@ -1,11 +1,12 @@
-# Known limitations (M1 engine, v0.2-dev)
+# Current limitations — M2 v0.3-dev
 
-- CLI paired-prompt intervention has unit tests against a synthetic bridge but has **not yet been run against real TransformerLens 4.2 + GPT-2 weights**.
-- The React page is a system-status screen, not the interactive experiment GUI; API has no experiment job queue.
-- GPU support is limited to experimental Apple MPS; CPU is the verification target.
-- Model revision is selectable by 40-character SHA but not required: a null revision must be treated as unsuitable for regression verification.
-- JSON artifacts contain input token IDs and derived statistics (potentially sensitive), not raw prompts/activation arrays.
-- Only exactly one residual site is patched per experiment; token lengths must match and token positions may not be semantically aligned.
-- Identity-control tolerance (1e-4) is a provisional engineering threshold that needs empirical calibration across systems/dtypes.
-- No lockfiles, memory budgets, concurrent-job isolation, persistent experiment storage, or CI regression assertions yet.
-- Do not expose the local API to the network; it has no authentication or rate limiting.
+- **No real TransformerLens/GPT-2 run verified yet.** The paired-prompt engine has synthetic torch tests and the FastAPI integration has fake-model worker tests, which cannot prove real hook compatibility.
+- **Front-end build pending.** React TSX syntax verified in isolation; package install, type check, production build, and browser e2e checks need a connected Node environment/GitHub CI.
+- Only GPT-2, max 128 tokens, same sequence length, single-token answer candidates, and one layer/token residual patch.
+- MPS support unvalidated. The identity-control tolerance needs measured device/dtype calibration.
+- Local API deliberately unauthenticated; bind to `127.0.0.1` only. No remote deployment, user accounts, or cross-origin sharing.
+- Models are loaded per job; cold start may be slow. No hard inference deadline or safe mid-inference cancellation.
+- The job queue is process-local, max 1 running + 2 queued. Restart doesn't resume pending jobs.
+- SQLite results omit raw prompts but contain token IDs, hashes, and output measurements; users must protect those files.
+- Not yet suitable for regression gates: model revision can be omitted, no deterministic model baseline manifests or CI assertions.
+- RMS heatmaps visualize difference, not causation. Patching effects are limited to these inputs and this model.

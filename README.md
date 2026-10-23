@@ -1,61 +1,54 @@
 # Cortex Debugger
 
-**Causal activation debugging for open-weight language models.**
+**Local-first model intervention and debugging studio**
 
-> Version **0.2.0-dev (M1 engine)** — local paired-prompt activation patching is implemented in the CLI; the interactive GUI and automated regression runner are planned. Model-backed TransformerLens execution has not yet been validated.
+M2 (v0.3.0-dev) integrates the GPT-2 paired-prompt activation patching engine, a FastAPI single-worker job queue, SQLite experiment metadata, and a React dashboard for launching experiments and viewing measured activation RMS differences, logit margins and self-patch controls.
 
-Cortex Debugger aims to turn model interventions into reproducible AI regression tests. This product workflow—not activation patching itself—is the proposed differentiator over existing interpretability tools.
-
-## Current capabilities
-
-- `cortex pair`: GPT-2 clean/corrupted prompt comparison with bounded token length, one residual patch, identity control, logit margin recovery, per-layer RMS differences and JSON report.
-- `cortex smoke`: optional GPT-2 same-input self-patching to check hook compatibility.
-- `cortex score`: deterministic normalized logit-margin recovery calculator.
-- Local FastAPI endpoints (`/api/v1/health`, `/models`, and numeric metrics).
-- React readiness dashboard. **Does not yet show actual activation heatmaps.**
-- Python unit tests, GitHub Actions checks, and an **opt-in** real-model smoke workflow.
+**Important:** The code has 43 local Python unit/integration tests using synthetic model output; the actual TransformerLens 4.2.0 + downloaded GPT-2 experiment has not yet been verified. The web UI is implemented, but its Node dependency build has not yet been confirmed in this environment. The model-smoke workflow remains opt-in and must be run before claiming scientific/model-backed correctness.
 
 ## Quick start
 
-Python 3.11+ (Node.js 22+ for web):
+Requirements: Python 3.11+, Node.js 22+. Run both terminals from the repository root unless otherwise noted.
 
 ```bash
-python -m pip install -e '.[dev,api]'
+python -m pip install -e '.[dev,api,ml]'
 pytest -q
-cortex info
 uvicorn apps.api.main:app --host 127.0.0.1 --port 8000
 ```
+
+In a second terminal:
 
 ```bash
 cd apps/web
 npm install
 npm run dev
+# http://127.0.0.1:5173
 ```
 
-### Run a real GPT-2 experiment (downloads model weights)
+The first experiment may download GPT-2 weights. The API has no user authentication and **must not be exposed to a network**. Model execution is serialized (one running and up to two waiting).
 
-```bash
-python -m pip install -e '.[ml]'
-cortex smoke --device cpu --layer 0 --token-index 0
-cortex pair --clean 'The dog runs' --corrupted 'The cat runs' \
-  --correct-token ' dog' --incorrect-token ' cat' \
-  --layer 5 --token-index 1 --device cpu --output artifacts/example.json
-```
+## M2 features
 
-A paired prompt must yield identical GPT-2 tokenized lengths. Candidates must each be exactly one token. Use `--revision` with the full Hugging Face model SHA for reproducible experiments. The example is a mechanical demo, not a validated circuit finding.
+- Compare clean/corrupted prompts with a single residual activation patch.
+- Record self-patch identity control, token×layer RMS activation deltas, and next-token logit margin recovery.
+- Start an experiment through the browser; poll job states and cancel queued jobs.
+- Browse recent experiment metadata and export JSON evidence.
+- Store experiment results in SQLite at `~/.cortex-debugger/experiments.sqlite3` (override with `CORTEX_DATA_DIR`). Raw prompts are not persisted, but output token IDs can reveal prompt information.
+- Run CLI `cortex pair`, `cortex smoke`, and `cortex score` unchanged from M1.
 
-## Source and project plans
+Full API and usage guide: [docs/M2_STUDIO.md](docs/M2_STUDIO.md). Scientific and technical limitations: [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
-- Engine: [`packages/cortex-engine`](packages/cortex-engine/src/cortex_engine)
-- CLI: [`cortex_engine/cli.py`](packages/cortex-engine/src/cortex_engine/cli.py)
-- API: [`apps/api`](apps/api)
-- Web: [`apps/web`](apps/web)
-- M1 user guide: [`docs/M1_ENGINE.md`](docs/M1_ENGINE.md)
-- Roadmap: [`docs/NEXT.md`](docs/NEXT.md) and [`docs/MVP_BLUEPRINT.md`](docs/MVP_BLUEPRINT.md)
-- Limitations: [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md)
+## Reproducibility and research caution
 
-## Research integrity and privacy
+Activation differences are only descriptive. A single patch can demonstrate a localized intervention effect, not a model-wide explanation. Pin the model revision before attempting rigorous cross-run tests. Real-model validation and M3 regression assertion workflows remain outstanding.
 
-Activation differences alone do not prove causation. A single intervention's effect is local to a model, prompt, and method. Prompts are hashed rather than saved to the JSON report; output token IDs can still expose sensitive information. No automatic third-party telemetry or cloud upload by default. Do not expose the local API to untrusted networks.
+## Project layout
 
-MIT License · Open-source contributions are welcome.
+- `apps/api/` — FastAPI + serialized worker + SQLite
+- `apps/web/` — React + TypeScript experiment studio
+- `packages/cortex-engine/` — TransformerLens bridge, patching, numeric metrics
+- `tests/` — model-free and API integration tests
+- `docs/` — experiment design and limitations
+- `.github/workflows/` — CI and manual GPT-2 smoke validation
+
+Licensed under MIT.

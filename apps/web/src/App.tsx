@@ -1,50 +1,92 @@
-import { useEffect, useState } from 'react';
-import { Activity, BrainCircuit, CircleCheck, CircleAlert, FlaskConical, GitBranch } from 'lucide-react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { Activity, AlertCircle, BrainCircuit, CheckCircle2, ChevronRight, Cpu, Download, FlaskConical, History, Info, Layers, Play, RefreshCw, Square } from 'lucide-react';
+import './styles.css';
 
-type Health = {status: string; stage: string; version: string};
-
-export default function App() {
-  const [health, setHealth] = useState<Health | null>(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch('/api/v1/health', {signal: controller.signal})
-      .then((res) => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
-      .then(setHealth)
-      .catch((err) => { if (err.name !== 'AbortError') setError('Local API is not running'); });
-    return () => controller.abort();
-  }, []);
-
-  return <div className="shell">
-    <aside className="sidebar">
-      <div className="brand"><BrainCircuit size={22}/><span>Cortex <b>Debugger</b></span></div>
-      <div className="section">WORKSPACE</div>
-      <div className="nav active"><Activity size={17}/> Overview</div>
-      <div className="nav disabled"><FlaskConical size={17}/> Experiments <span>soon</span></div>
-      <div className="nav disabled"><GitBranch size={17}/> Regression tests <span>soon</span></div>
-      <div className="footer">Local-first · Open source<br/>M0 technical validation</div>
-    </aside>
-    <main>
-      <header><span>WORKSPACE / OVERVIEW</span><span className="pill">M0 · Prototype</span></header>
-      <div className="content">
-        <div className="eyebrow">CAUSAL MODEL DEBUGGING</div>
-        <h1>Understand what changed.<br/><em>Test what caused it.</em></h1>
-        <p className="lead">Cortex Debugger turns model intervention experiments into reproducible regression tests. The current milestone verifies the model hook engine before experiment UI is enabled.</p>
-        <div className="panel">
-          <div className="panel-head"><span>Local engine status</span>{health ? <CircleCheck color="#34b98a" size={20}/> : <CircleAlert color="#f19d52" size={20}/>}</div>
-          <div className="status-grid">
-            <div><small>API CONNECTION</small><strong>{health ? 'Connected' : 'Disconnected'}</strong></div>
-            <div><small>ENGINE MILESTONE</small><strong>{health?.stage ?? 'M0'}</strong></div>
-            <div><small>MODEL</small><strong>GPT-2 Small</strong></div>
-          </div>
-          {error && <div className="warning">{error}. Start: <code>uvicorn apps.api.main:app --host 127.0.0.1</code></div>}
-        </div>
-        <h2>First executable experiment</h2>
-        <div className="step"><div className="number">01</div><div><b>Identity control</b><p>Load GPT-2, capture a residual activation, replace it with itself, and compare final logits.</p><code>cortex smoke --device cpu --layer 0 --token-index 0</code></div></div>
-        <div className="step"><div className="number">02</div><div><b>Verify baseline</b><p>Check the measured maximum absolute logit difference against a declared tolerance.</p></div></div>
-        <div className="step"><div className="number">03</div><div><b>Build paired-prompt debugger</b><p>Next milestone: clean/corrupted prompts, layer/token visualization, and patching comparison.</p></div></div>
-      </div>
-    </main>
-  </div>;
+type Status = 'queued'|'running'|'completed'|'failed'|'cancelled';
+type Config = {device:string;layer:number;token_index:number;revision:string|null};
+type Result = {
+ status:'pass'|'fail'; activation_rms_delta:number[][];
+ scores:{clean:number;corrupted:number;patched:number;recovery:number|null};
+ control:{max_abs_logit_delta:number;tolerance:number};
+ patch:{layer:number;token_index:number;site:string};runtime_seconds?:number
+};
+type Experiment = {id:string;status:Status;created_at:string;configuration:Config;error:string|null;result:Result|null};
+type HistoryItem = Pick<Experiment,'id'|'status'|'created_at'|'configuration'>;
+type FormValues = {clean:string;corrupted:string;correct_token:string;incorrect_token:string;layer:number;token_index:number;device:'cpu'|'mps';revision:string};
+const starter:FormValues = {clean:'The dog runs',corrupted:'The cat runs',correct_token:' dog',incorrect_token:' cat',layer:5,token_index:1,device:'cpu',revision:''};
+const done = (s:Status) => ['completed','failed','cancelled'].includes(s);
+const number = (n:number|null|undefined,places=4) => typeof n==='number'&&Number.isFinite(n) ? n.toFixed(places) : '—';
+async function api<T>(path:string,init?:RequestInit):Promise<T> {
+ const res=await fetch(path,init); const data=await res.json().catch(()=>({}));
+ if(!res.ok){const d=data.detail; throw new Error(typeof d==='string'?d:Array.isArray(d)?d.map((e:{msg:string})=>e.msg).join('; '):'HTTP '+res.status)}
+ return data as T;
+}
+function Heatmap({data,selection,onSelect}:{data:number[][];selection:[number,number];onSelect:(row:number,col:number)=>void}){
+ const max=Math.max(1e-10,...data.flat().filter(Number.isFinite));
+ return <div className="heat-scroll"><div className="heat-grid" style={{gridTemplateColumns:`35px repeat(${data[0]?.length??1},minmax(19px,1fr))`}}>
+ {data.map((row,i)=><div key={i} style={{display:'contents'}}><span className="layer">{i}</span>{row.map((v,j)=><button type="button" key={j}
+ className={'heat-cell '+(selection[0]===i&&selection[1]===j?'chosen':'')}
+ style={{backgroundColor:`rgba(72,171,248,${.09+.86*Math.sqrt(Math.max(0,v)/max)})`}}
+ title={`Layer ${i} / token ${j} / RMS ${number(v,6)}`}
+ aria-label={`Layer ${i}, token ${j}, RMS ${number(v,6)}`}
+ onClick={()=>onSelect(i,j)}/>)}</div>)}</div><div className="heat-legend">Layer ↓ · Token position → · Brighter = larger RMS difference</div></div>
+}
+export default function App(){
+ const [tab,setTab]=useState<'studio'|'history'>('studio');
+ const [form,setForm]=useState<FormValues>(starter);
+ const [connected,setConnected]=useState(false);
+ const [current,setCurrent]=useState<Experiment|null>(null);
+ const [history,setHistory]=useState<HistoryItem[]>([]);
+ const [error,setError]=useState('');
+ const [pending,setPending]=useState(false);
+ const [cell,setCell]=useState<[number,number]>([5,1]);
+ const edit=<K extends keyof FormValues,>(name:K,value:FormValues[K])=>setForm(prev=>({...prev,[name]:value}));
+ const loadHistory=useCallback(async()=>{try{setHistory((await api<{items:HistoryItem[]}>('/api/v1/experiments?limit=30')).items)}catch{/* health/errors shown elsewhere */}},[]);
+ const loadJob=useCallback(async(id:string)=>{const result=await api<Experiment>('/api/v1/experiments/'+encodeURIComponent(id));setCurrent(result);if(done(result.status))void loadHistory()},[loadHistory]);
+ useEffect(()=>{void api('/api/v1/health').then(()=>{setConnected(true);void loadHistory()}).catch(()=>setConnected(false))},[loadHistory]);
+ useEffect(()=>{if(!current||done(current.status))return;const timer=window.setInterval(()=>{void loadJob(current.id).catch(e=>setError(String(e)))},1100);return()=>window.clearInterval(timer)},[current?.id,current?.status,loadJob]);
+ const run=async(e:FormEvent<HTMLFormElement>)=>{
+  e.preventDefault();setError('');setPending(true);
+  try{
+   const req={...form,revision:form.revision.trim()||null};
+   const job=await api<{id:string;status:Status;created_at:string}>('/api/v1/experiments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)});
+   setCurrent({...job,configuration:req,error:null,result:null});setCell([form.layer,form.token_index]);setTab('studio');setConnected(true);void loadHistory()
+  }catch(e){setError(e instanceof Error?e.message:String(e))}finally{setPending(false)}
+ };
+ const cancel=async()=>{if(!current)return;try{await api('/api/v1/experiments/'+current.id+'/cancel',{method:'POST'});await loadJob(current.id)}catch(e){setError(String(e))}};
+ const download=()=>{if(!current?.result)return;const url=URL.createObjectURL(new Blob([JSON.stringify(current,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='cortex-'+current.id.slice(0,8)+'.json';a.click();URL.revokeObjectURL(url)};
+ const busy=pending||Boolean(current&&!done(current.status));
+ const result=current?.result; const rms=result?.activation_rms_delta?.[cell[0]]?.[cell[1]];
+ return <div className="shell"><aside className="sidebar">
+ <div className="brand"><span className="logo"><BrainCircuit size={22}/></span>Cortex <strong>Debugger</strong></div>
+ <div className="aside-label">WORKSPACE</div>
+ <button className={'side-link '+(tab==='studio'?'selected':'')} onClick={()=>setTab('studio')}><FlaskConical size={17}/> Experiment <ChevronRight size={15}/></button>
+ <button className={'side-link '+(tab==='history'?'selected':'')} onClick={()=>{setTab('history');void loadHistory()}}><History size={17}/> History <small>{history.length}</small></button>
+ <hr/><div className="aside-label">MODEL</div><div className="model"><Cpu size={18}/><div>GPT-2 Small<small>12 layers · local weights</small></div></div>
+ <div className="aside-foot"><span className={'indicator '+(connected?'ok':'')}/>{connected?'Local API connected':'API offline'}<small>M2 · development preview</small></div>
+ </aside><main><header><span>CORTEX / {tab==='studio'?'EXPERIMENT STUDIO':'HISTORY'}</span><div><span className="local-pill">LOCAL ONLY</span><span>v0.3.0-dev</span></div></header>
+ <div className="content"><div className="heading"><div><div className="eyebrow">MECHANISTIC INTERPRETABILITY / M2</div><h1>{tab==='studio'?'Experiment studio':'Experiment history'}</h1><p>Compare model runs, intervene on residual activations, and inspect measured effects.</p></div><span className="model-pill"><Activity size={13}/> GPT-2 ENGINE</span></div>
+ {error&&<div className="error" role="alert"><AlertCircle size={16}/>{error}<button onClick={()=>setError('')} aria-label="Dismiss">×</button></div>}
+ {!connected&&<div className="notice"><Info size={15}/>API offline. Run <code>uvicorn apps.api.main:app --host 127.0.0.1 --port 8000</code> then refresh.</div>}
+ {tab==='studio'?<><div className="studio">
+ <form className="panel" onSubmit={run}>
+ <div className="panel-heading"><span className="panel-icon"><Layers size={17}/></span><div><h2>Input configuration</h2><p>Clean / corrupted / patch</p></div></div>
+ <div className="fields"><label>CLEAN PROMPT <small>Source A</small><textarea value={form.clean} onChange={e=>edit('clean',e.target.value)} rows={3} required maxLength={600}/></label>
+ <label>CORRUPTED PROMPT <small>Target B</small><textarea value={form.corrupted} onChange={e=>edit('corrupted',e.target.value)} rows={3} required maxLength={600}/></label>
+ <div className="columns"><label>CORRECT TOKEN<input value={form.correct_token} onChange={e=>edit('correct_token',e.target.value)} required maxLength={60}/></label><label>INCORRECT TOKEN<input value={form.incorrect_token} onChange={e=>edit('incorrect_token',e.target.value)} required maxLength={60}/></label></div>
+ <div className="columns"><label>PATCH LAYER<input type="number" min="0" max="11" value={form.layer} onChange={e=>edit('layer',Number(e.target.value))} required/></label><label>TOKEN INDEX<input type="number" min="0" max="127" value={form.token_index} onChange={e=>edit('token_index',Number(e.target.value))} required/></label></div>
+ <div className="columns"><label>COMPUTE<select value={form.device} onChange={e=>edit('device',e.target.value as 'cpu'|'mps')}><option value="cpu">CPU (portable)</option><option value="mps">Apple MPS</option></select></label><label>MODEL SHA (OPTIONAL)<input value={form.revision} onChange={e=>edit('revision',e.target.value)} placeholder="40-character commit SHA"/></label></div>
+ <div className="hint"><Info size={15}/> Both inputs must tokenize to equal lengths; candidate strings must each be a single GPT-2 token.</div></div>
+ <div className="form-foot"><button className="primary" disabled={busy||!connected}><Play size={15} fill="currentColor"/>{busy?'Experiment in progress':'Run experiment'}</button><small>1 running + up to 2 waiting</small></div></form>
+ <div className="outputs"><section className="panel"><div className="result-head"><h2>Experiment results</h2><span className={'status '+(current?.status??'idle')}>{current?.status??'Awaiting run'}</span></div>
+ {result?<><div className="scores"><div><small>CLEAN MARGIN</small><strong>{number(result.scores.clean)}</strong></div><div><small>CORRUPTED</small><strong>{number(result.scores.corrupted)}</strong></div><div><small>PATCHED</small><strong>{number(result.scores.patched)}</strong></div></div>
+ <div className="recovery"><div><small>NORMALIZED RECOVERY</small><strong>{result.scores.recovery==null?'Undefined':number(result.scores.recovery*100,1)+'%'}</strong></div><span>May be negative or above 100%</span></div>
+ <div className="control"><CheckCircle2 size={16} color={result.status==='pass'?'#44d3a0':'#f4a377'}/> Self-patch control {number(result.control.max_abs_logit_delta,6)} / tolerance {number(result.control.tolerance,6)}</div></>:
+ <div className="empty"><span className="empty-icon"><Activity size={25}/></span><strong>{current?'Experiment '+current.status:'No results yet'}</strong><p>{current?.error??(current?'Model execution is pending or running.':'Run an experiment to see scores and activation changes.')}</p>{current?.status==='queued'&&<button className="secondary" onClick={cancel} type="button"><Square size={14}/> Cancel queued job</button>}</div>}</section>
+ <section className="panel"><div className="result-head"><div><h2>Activation difference</h2><p>Residual stream · layer × token · RMS</p></div><span className="descriptive">DESCRIPTIVE</span></div>
+ {result?<><Heatmap data={result.activation_rms_delta} selection={cell} onSelect={(l,t)=>{setCell([l,t]);edit('layer',l);edit('token_index',t)}}/><div className="pick"><b>Layer {cell[0]} · Token {cell[1]}</b><span>RMS {number(rms,6)} — Rerun to patch this location</span></div></>:<div className="heat-empty"><Layers size={22}/>Run an experiment to populate the heatmap</div>}</section>
+ {result&&<button className="secondary export" onClick={download}><Download size={15}/> Export JSON evidence</button>}</div></div>
+ <div className="disclaimer"><Info size={16}/> A heatmap is descriptive, not causal proof. Patching results apply only to the exact model and inputs. Pin revision for future regression tests.</div></>:
+ <section className="panel history-panel"><div className="result-head"><h2>Recent experiments</h2><button className="secondary" onClick={()=>void loadHistory()}><RefreshCw size={14}/> Refresh</button></div>{history.length?history.map(item=><button key={item.id} className="history-item" onClick={()=>{void loadJob(item.id).then(()=>{setTab('studio');setCell([item.configuration.layer,item.configuration.token_index])}).catch(e=>setError(String(e)))}}><History size={15}/><div><b>{item.id.slice(0,8)}</b><small>{new Date(item.created_at).toLocaleString()} · L{item.configuration.layer}/T{item.configuration.token_index}</small></div><span className={'status '+item.status}>{item.status}</span><ChevronRight size={15}/></button>):<div className="empty"><p>No local experiments yet.</p></div>}</section>}
+ </div></main></div>;
 }
