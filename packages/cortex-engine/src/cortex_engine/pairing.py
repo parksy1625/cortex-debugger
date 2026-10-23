@@ -8,10 +8,14 @@ from __future__ import annotations
 
 import hashlib
 import math
+import os
+import platform
 import time
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 from cortex_engine.metrics import logit_margin, recovery_score
+from cortex_engine.model_cache import MODEL_CACHE, SingleModelCache
 from cortex_engine.validation import validate_pair_lengths, validate_patch_coordinate
 
 MAX_TOKEN_COUNT = 128
@@ -177,12 +181,38 @@ def run_gpt2_pair(
     torch.manual_seed(0)
     model_id = "openai-community/gpt2"
     revision = revision or DEFAULT_MODEL_REVISION
-    bridge = TransformerBridge.boot_transformers(model_id, device=device, revision=revision)
-    bridge.eval()
-    with torch.inference_mode():
-        return analyze_pair(
-            bridge, clean=clean, corrupted=corrupted,
-            correct_token=correct_token, incorrect_token=incorrect_token,
-            layer=layer, token_index=token_index, device=device,
-            model_id=model_id, model_revision=revision,
+    cache = SingleModelCache() if os.environ.get("CORTEX_DISABLE_MODEL_CACHE") == "1" else MODEL_CACHE
+
+    # Hold the cache lock throughout inference: TransformerLens hooks must not
+    # be modified by concurrent calls that share the same bridge instance.
+    with cache.lock:
+        bridge, cache_hit, load_seconds = cache.load(
+            (model_id, revision, device),
+            lambda: TransformerBridge.boot_transformers(
+                model_id, device=device, revision=revision
+            ),
         )
+        with torch.inference_mode():
+            result = analyze_pair(
+                bridge, clean=clean, corrupted=corrupted,
+                correct_token=correct_token, incorrect_token=incorrect_token,
+                layer=layer, token_index=token_index, device=device,
+                model_id=model_id, model_revision=revision,
+            )
+    try:
+        lens_version = version("transformer-lens")
+    except PackageNotFoundError:
+        lens_version = "unknown"
+    result["execution"] = {
+        "python": platform.python_version(),
+        "os": platform.system(),
+        "architecture": platform.machine(),
+        "torch": str(torch.__version__),
+        "transformer_lens": lens_version,
+        "seed": 0,
+        "dtype": str(next(iter(bridge.parameters())).dtype)
+        if callable(getattr(bridge, "parameters", None)) else "unknown",
+        "model_cache_hit": cache_hit,
+        "model_load_seconds": load_seconds,
+    }
+    return result

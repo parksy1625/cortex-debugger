@@ -9,6 +9,7 @@ from typing import Literal
 
 from cortex_engine import __version__
 from cortex_engine.metrics import logit_margin, recovery_score
+from cortex_engine.model_cache import MODEL_CACHE
 from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
 
@@ -59,11 +60,15 @@ class ExperimentRequest(BaseModel):
 
 @app.get("/api/v1/health")
 def health() -> dict:
-    return {"status": "ok", "stage": "M4", "version": __version__, "local_only": True}
+    return {"status": "ok", "stage": "M5", "version": __version__, "local_only": True}
 
 @app.get("/api/v1/models")
 def models() -> dict:
-    return {"models": [{"id": "openai-community/gpt2", "status": "supported", "loaded": False}]}
+    cache = MODEL_CACHE.status()
+    return {"models": [{"id": "openai-community/gpt2", "status": "supported",
+                        "loaded": cache["loaded"], "revision": cache["revision"],
+                        "device": cache["device"], "model_loads": cache["model_loads"],
+                        "cache_hits": cache["cache_hits"]}]}
 
 @app.post("/api/v1/metrics/margin")
 def margin(request: MarginRequest) -> dict:
