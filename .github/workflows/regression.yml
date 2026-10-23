@@ -29,7 +29,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install pinned TransformerLens backend
-        run: pip install -e '.[ml]'
+        run: pip install -e '.[ml]' -c requirements-linux-py311.lock
       - name: Validate versioned experiment manifest
         run: cortex validate experiments/regression/gpt2-dog-cat.json
       - name: Replay model and assert regression bounds

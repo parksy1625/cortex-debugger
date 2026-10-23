@@ -26,7 +26,7 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         working-directory: apps/web
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Use runner-provided Chrome (avoid redundant browser download)
         run: google-chrome --version
       - name: Production build

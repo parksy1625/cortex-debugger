@@ -24,7 +24,7 @@ jobs:
       - name: Install pinned backend
         run: |
           python -m pip install torch==2.7.1 --index-url https://download.pytorch.org/whl/cpu
-          python -m pip install -e '.[ml,api]'
+          python -m pip install -e '.[ml,api]' -c requirements-linux-py311.lock
       - name: Measure repeated pinned GPT-2 in isolated worker
         run: python -m scripts.benchmark_model --runs 3 --device cpu --output artifacts/m7-benchmark.json
       - name: Upload measured benchmark with runner caveats
