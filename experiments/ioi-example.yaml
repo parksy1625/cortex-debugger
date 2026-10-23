@@ -1,0 +1,18 @@
+# Example future M1+ experiment; not runnable through the M0 CLI.
+schema_version: 1
+model:
+  id: openai-community/gpt2
+  revision: TODO_PIN_HUGGINGFACE_SHA
+  device: cpu
+  dtype: float32
+inputs:
+  clean: "After John and Mary went to the store, Mary gave a bottle to"
+  corrupted: "After Mary and John went to the store, John gave a bottle to"
+metric:
+  type: next_token_logit_difference
+  correct_token: " John"
+  incorrect_token: " Mary"
+interventions:
+  - kind: residual_patch
+    layer: 5
+    token_index: 6

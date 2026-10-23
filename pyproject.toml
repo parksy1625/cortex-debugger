@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cortex-debugger"
+version = "0.1.0.dev0"
+description = "Local-first causal activation debugging for open-weight language models"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Cortex Debugger Contributors"}]
+dependencies = []
+
+[project.optional-dependencies]
+ml = ["torch>=2.4", "transformer-lens>=4.0,<5.0"]
+api = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1"]
+dev = ["pytest>=8,<10", "httpx>=0.27,<1", "ruff>=0.6,<1", "fastapi>=0.115,<1"]
+
+[project.scripts]
+cortex = "cortex_engine.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "packages/cortex-engine/src"}
+
+[tool.setuptools.packages.find]
+where = ["packages/cortex-engine/src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

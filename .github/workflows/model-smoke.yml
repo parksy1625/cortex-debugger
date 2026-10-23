@@ -1,0 +1,14 @@
+name: Model smoke (manual)
+on:
+  workflow_dispatch:
+jobs:
+  gpt2-self-patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -e '.[ml]'
+      - run: cortex smoke --device cpu --layer 0 --token-index 0
