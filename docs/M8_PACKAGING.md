@@ -31,13 +31,14 @@ GitHub Actions build steps:
 5. Start the **packaged** FastAPI service and fetch compiled UI and API health.
 6. Run existing real GPT-2 Chromium E2E against **port 8000**, not Vite.
 7. Upload the verified ZIP and checksum as an Actions artifact.
-8. Publish the same ZIP as a GitHub prerelease only when the exact tag
-   `v0.9.0-rc1` is pushed and the package smoke job succeeds.
+8. Once packaged smoke passes on main (or the matching tag), publish
+   `v0.9.0-rc1` as a prerelease with the same tested ZIP and checksum.
+9. Independently download the published ZIP on Apple Silicon macOS, run its
+   bundled `bash start.sh`, and verify an actual MPS GPT-2 patch.
 
 The release pipeline currently does **not** sign/notarize the macOS binary,
 use OS-native executable installers, provide user credential management or
-supply-chain attestations. macOS and Windows launcher paths are prepared but
-have not been validated in platform-specific CI.
+supply-chain attestations. The Mac launcher was validated in [actual Apple Silicon CI](https://github.com/parksy1625/cortex-debugger/actions/runs/40011896404); Windows is still unverified.
 
 ## Safety limitations
 

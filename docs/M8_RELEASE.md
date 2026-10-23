@@ -18,11 +18,11 @@ The web screen and API are served on the same port, without Node or Vite.
 
 On a GitHub-hosted Linux x86-64 runner, the bundle script installs the
 previously validated Torch 2.7.1 CPU wheel and uses
-`requirements-linux-py311.lock` as a version constraint. **macOS and Windows
-installations have not yet been end-to-end validated from this ZIP.**
-Their native Torch 2.7.1 environment should be verified before scientific
-interpretation. Apple MPS requires compatible PyTorch/Mac hardware, and can be
-selected in the browser UI.
+`requirements-linux-py311.lock` as a version constraint. **The actual release ZIP has now also passed an Apple Silicon macOS MPS
+smoke test**, including `bash start.sh` first-run dependency installation
+and a real GPT-2 activation patch. [Mac verification run #40011896404](https://github.com/parksy1625/cortex-debugger/actions/runs/40011896404).
+Windows launch/install is not yet independently verified. Apple MPS can
+be selected from the browser UI on compatible Mac hardware.
 
 ## Local data and privacy
 
@@ -37,12 +37,13 @@ backups, journal files or filesystem snapshots.
 
 ## Packaging validation
 
-GitHub's "Bundle smoke and release" workflow unpacks the very ZIP that it
+GitHub's "Local bundle and release" workflow unpacks the very ZIP that it
 uploads, creates a fresh environment, installs the included wheel, serves the
 compiled UI and checks API health and model behavior. Refer to that workflow
 for the specific release candidate's status; do not infer validation from the
 presence of the ZIP alone.
 
-This ZIP is not code-signed or notarized. SHA-256 checksums are provided by
-the Actions workflow and tag-based release job if/when a release tag is
-created. No permanent download link is promised for expiring CI artifacts.
+This ZIP is not code-signed or notarized. SHA-256 checksums are published with the
+[GitHub v0.9.0-rc1 prerelease](https://github.com/parksy1625/cortex-debugger/releases/tag/v0.9.0-rc1).
+The GitHub Release URL is persistent unless intentionally deleted; ordinary
+Actions artifacts have separate retention policies.
