@@ -36,7 +36,7 @@ The first experiment may download GPT-2 weights. The API has no user authenticat
 - Store experiment results in SQLite at `~/.cortex-debugger/experiments.sqlite3` (override with `CORTEX_DATA_DIR`). Raw prompts are not persisted, but output token IDs can reveal prompt information.
 - Run CLI `cortex pair`, `cortex smoke`, and `cortex score` unchanged from M1.
 
-Full API and usage guide: [docs/M2_STUDIO.md](docs/M2_STUDIO.md). Scientific and technical limitations: [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
+Model-backed validation: [measured results](docs/MEASURED_RESULTS.md) · [successful GPT-2 smoke run](https://github.com/parksy1625/cortex-debugger/actions/runs/39992734283).\n\nFull API and usage guide: [docs/M2_STUDIO.md](docs/M2_STUDIO.md). Scientific and technical limitations: [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Reproducibility and research caution
 
