@@ -34,7 +34,7 @@ For a *measured* cold/warm series on Linux CPU or Apple Silicon MPS:
 
 ```bash
 python -m pip install -e '.[ml,api]'
-python scripts/benchmark_model.py --runs 3 --device cpu \
+python -m scripts.benchmark_model --runs 3 --device cpu \
   --output artifacts/m7-benchmark.json
 ```
 

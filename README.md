@@ -45,7 +45,7 @@ cortex verify experiments/regression/gpt2-dog-cat.json \
 For cold/warm performance (real model weights will download on first use):
 
 ```bash
-python scripts/benchmark_model.py --runs 3 --device cpu
+python -m scripts.benchmark_model --runs 3 --device cpu
 ```
 
 The benchmark ratio is **one measured example**, not a general acceleration

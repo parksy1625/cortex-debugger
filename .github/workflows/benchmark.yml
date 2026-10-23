@@ -26,7 +26,7 @@ jobs:
           python -m pip install torch==2.7.1 --index-url https://download.pytorch.org/whl/cpu
           python -m pip install -e '.[ml,api]'
       - name: Measure repeated pinned GPT-2 in isolated worker
-        run: python scripts/benchmark_model.py --runs 3 --device cpu --output artifacts/m7-benchmark.json
+        run: python -m scripts.benchmark_model --runs 3 --device cpu --output artifacts/m7-benchmark.json
       - name: Upload measured benchmark with runner caveats
         if: always()
         uses: actions/upload-artifact@v4
