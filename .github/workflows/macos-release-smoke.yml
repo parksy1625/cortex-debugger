@@ -1,0 +1,65 @@
+name: Apple Silicon packaged release smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/macos-release-smoke.yml'
+      - 'scripts/smoke_macos_bundle.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-arm64:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Confirm Apple Silicon
+        run: test "$(uname -m)" = 'arm64'
+      - name: Download the actual published release ZIP
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/cortex-m8-mac
+          gh release download v0.9.0-rc1 --repo parksy1625/cortex-debugger \
+            --pattern 'Cortex-Debugger-v0.9.0-rc1.zip' --dir /tmp/cortex-m8-mac
+          gh release download v0.9.0-rc1 --repo parksy1625/cortex-debugger \
+            --pattern '*.sha256' --dir /tmp/cortex-m8-mac
+          cd /tmp/cortex-m8-mac
+          shasum -a 256 -c *.sha256
+          python -m zipfile -e Cortex-Debugger-v0.9.0-rc1.zip runtime
+      - name: Launch via published macOS bootstrap script
+        run: |
+          cd /tmp/cortex-m8-mac/runtime
+          CORTEX_DATA_DIR=/tmp/cortex-m8-mac/data \
+          CORTEX_JOB_TIMEOUT_SECONDS=300 \
+            bash start.sh >/tmp/cortex-m8-mac/app.log 2>&1 &
+          echo $! >/tmp/cortex-m8-mac/app.pid
+          for n in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8000/api/v1/health >/dev/null; then break; fi
+            if [ "$n" -eq 90 ]; then tail -100 /tmp/cortex-m8-mac/app.log; exit 1; fi
+            sleep 5
+          done
+          curl -fsS http://127.0.0.1:8000/ | grep -q '<div id="root"'
+      - name: Verify actual Torch Metal backend
+        run: |
+          /tmp/cortex-m8-mac/runtime/.venv/bin/python -c "import platform, torch; print(platform.machine(), torch.__version__, torch.backends.mps.is_available()); assert platform.machine() == 'arm64' and torch.backends.mps.is_available()"
+      - name: Run pinned GPT-2 activation intervention via installed MPS app
+        run: python scripts/smoke_macos_bundle.py
+      - name: Stop Mac local app
+        if: always()
+        run: |
+          if [ -f /tmp/cortex-m8-mac/app.pid ]; then kill "$(cat /tmp/cortex-m8-mac/app.pid)" || true; fi
+      - name: Upload redacted diagnostic on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cortex-m8-macos-package-failure
+          path: /tmp/cortex-m8-mac/app.log
+          if-no-files-found: ignore
