@@ -16,7 +16,7 @@ def test_macos_app_includes_exact_published_runtime(tmp_path):
         archive.writestr("start.ps1", "Write-Host 'localhost'")
         archive.writestr("README-RELEASE.md", "M8 bundle")
         archive.writestr("apps/web/dist/index.html", "<html/>")
-        archive.writestr("wheel/cortex_debugger-0.9.0rc1-py3-none-any.whl", "dummy")
+        archive.writestr("wheel/cortex_debugger-0.10.0rc1-py3-none-any.whl", "dummy")
     app = build(runtime, tmp_path / "out")
     assert app.name == "Cortex Debugger.app"
     binary = app / "Contents" / "MacOS" / "CortexDebugger"

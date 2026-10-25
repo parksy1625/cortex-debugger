@@ -19,7 +19,7 @@ def read(path: str) -> dict:
 
 
 def main() -> None:
-    assert read("/api/v1/health")["stage"] == "M8"
+    assert read("/api/v1/health")["stage"] == "M10"
     with urlopen(HOST + "/", timeout=20) as response:
         assert b'<div id="root"' in response.read()
     payload = {
@@ -58,7 +58,7 @@ def main() -> None:
     assert read("/api/v1/models")["models"][0]["loaded"] is True
     print(json.dumps({
         "status": "pass", "platform": "Windows x64 native CPU",
-        "revision": REVISION, "recovery": recovery, "api_stage": "M8",
+        "revision": REVISION, "recovery": recovery, "api_stage": "M10",
     }, indent=2))
 
 

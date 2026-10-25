@@ -18,7 +18,7 @@ def get(route: str) -> dict:
 def main() -> None:
     status = get("/api/v1/health")
     assert status["status"] == "ok"
-    assert status["stage"] == "M8"
+    assert status["stage"] == "M10"
 
     experiment = {
         "clean": "The dog runs",
