@@ -3,6 +3,11 @@ import { expect, test } from '@playwright/test';
 test('real GPT-2 browser-to-API experiment and manifest export', async ({ page }) => {
   test.skip(process.env.CORTEX_LIVE_MODEL !== '1', 'Live model test runs only in opted-in CI');
   await page.goto('/');
+  if (process.env.CORTEX_TEST_PAIRING_CODE) {
+    await expect(page.getByRole('heading',{name:'Connect to your local Cortex'})).toBeVisible();
+    await page.getByRole('textbox',{name:'Pairing code'}).fill(process.env.CORTEX_TEST_PAIRING_CODE);
+    await page.getByRole('button',{name:'Unlock local studio'}).click();
+  }
   await expect(page.getByText('Local API connected')).toBeVisible();
   await expect(page.getByText('GPT-2 Small')).toBeVisible();
   await page.getByRole('button', { name: /Run experiment/ }).click();
@@ -11,7 +16,9 @@ test('real GPT-2 browser-to-API experiment and manifest export', async ({ page }
   await expect(page.getByText(/103\.5%|103\.4%|103\.6%/)).toBeVisible({timeout:180000});
   await expect(page.getByRole('button', {name: /Layer 5, token 2, RMS/})).toBeVisible();
 
-  const info = await page.request.get('/api/v1/models');
+  const token = await page.evaluate(()=>sessionStorage.getItem('cortex-pair-token'));
+  const info = await page.request.get('/api/v1/models',
+    token?{headers:{Authorization:'Bearer '+token}}:{});
   expect(info.ok()).toBeTruthy();
   const models = await info.json();
   expect(models.models[0].loaded).toBe(true);

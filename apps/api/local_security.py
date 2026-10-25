@@ -84,6 +84,19 @@ async def protect_local_requests(request: Request, call_next):
     # remain supported for the existing CLI and smoke tests.
     if request.method in _UNSAFE and fetch_site == "none":
         return JSONResponse({"detail": "Browser mutation origin required"}, status_code=403)
+    # The login handshake is intentionally available without a bearer token.
+    # Authentication is enforced at the API boundary for every other endpoint
+    # except non-sensitive health/setup status. Browser origin checks above
+    # apply even to pairing attempts.
+    pairing = getattr(request.app.state, "pairing", None)
+    path = request.url.path
+    public = (
+        path in ("/api/v1/health", "/api/v1/setup", "/api/v1/auth/status")
+        and request.method == "GET"
+    ) or (path == "/api/v1/auth/pair" and request.method == "POST")
+    if pairing is not None and path.startswith("/api/v1/") and not public:
+        if not pairing.authorized(request.headers.get("authorization")):
+            return JSONResponse({"detail": "Browser pairing required"}, status_code=401)
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "no-referrer"

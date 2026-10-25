@@ -18,8 +18,14 @@ type RuntimeDiagnostics = {python:string;python_supported:boolean;os:string;arch
 const starter:FormValues = {clean:'The dog runs',corrupted:'The cat runs',correct_token:' dog',incorrect_token:' cat',layer:5,token_index:2,device:'cpu',revision:''};
 const done = (s:Status) => ['completed','failed','cancelled'].includes(s);
 const number = (n:number|null|undefined,places=4) => typeof n==='number'&&Number.isFinite(n) ? n.toFixed(places) : '—';
+function authorizedFetch(path:string,init?:RequestInit):Promise<Response> {
+ const headers=new Headers(init?.headers);
+ const token=window.sessionStorage.getItem('cortex-pair-token');
+ if(token)headers.set('Authorization','Bearer '+token);
+ return fetch(path,{...init,headers});
+}
 async function api<T>(path:string,init?:RequestInit):Promise<T> {
- const res=await fetch(path,init); const data=await res.json().catch(()=>({}));
+ const res=await authorizedFetch(path,init); const data=await res.json().catch(()=>({}));
  if(!res.ok){const d=data.detail; throw new Error(typeof d==='string'?d:Array.isArray(d)?d.map((e:{msg:string})=>e.msg).join('; '):'HTTP '+res.status)}
  return data as T;
 }
@@ -37,6 +43,11 @@ export default function App(){
  const [tab,setTab]=useState<'studio'|'history'>('studio');
  const [form,setForm]=useState<FormValues>(starter);
  const [connected,setConnected]=useState(false);
+ const [pairingRequired,setPairingRequired]=useState(false);
+ const [authenticated,setAuthenticated]=useState(true);
+ const [pairCode,setPairCode]=useState('');
+ const [pairBusy,setPairBusy]=useState(false);
+ const [pairError,setPairError]=useState('');
  const [runtime,setRuntime]=useState<RuntimeDiagnostics|null>(null);
  const [current,setCurrent]=useState<Experiment|null>(null);
  const [history,setHistory]=useState<HistoryItem[]>([]);
@@ -50,7 +61,30 @@ export default function App(){
  const loadHistory=useCallback(async()=>{try{setHistory((await api<{items:HistoryItem[]}>('/api/v1/experiments?limit=30')).items)}catch{/* health/errors shown elsewhere */}},[]);
  const loadJob=useCallback(async(id:string)=>{const result=await api<Experiment>('/api/v1/experiments/'+encodeURIComponent(id));setCurrent(result);if(done(result.status))void loadHistory()},[loadHistory]);
  const refreshRuntime=useCallback(async()=>{try{setRuntime(await api<RuntimeDiagnostics>('/api/v1/setup'))}catch{setRuntime(null)}},[]);
- useEffect(()=>{void api('/api/v1/health').then(()=>{setConnected(true);void loadHistory();void refreshRuntime()}).catch(()=>setConnected(false))},[loadHistory,refreshRuntime]);
+ useEffect(()=>{
+  void api('/api/v1/health').then(()=>{setConnected(true);void refreshRuntime()}).catch(()=>setConnected(false));
+  void api<{enabled:boolean;authenticated:boolean}>('/api/v1/auth/status')
+   .then(status=>{
+    setPairingRequired(status.enabled);
+    setAuthenticated(status.authenticated);
+    if(status.authenticated)void loadHistory();
+    else if(window.sessionStorage.getItem('cortex-pair-token'))
+      window.sessionStorage.removeItem('cortex-pair-token');
+   })
+   .catch(()=>{setPairingRequired(false);setAuthenticated(true);void loadHistory()});
+ },[loadHistory,refreshRuntime]);
+ const pairBrowser=async(e:FormEvent<HTMLFormElement>)=>{
+  e.preventDefault();setPairError('');setPairBusy(true);
+  try {
+   const result=await api<{token:string}>('/api/v1/auth/pair',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({code:pairCode.trim()})
+   });
+   window.sessionStorage.setItem('cortex-pair-token',result.token);
+   setPairCode('');setAuthenticated(true);void loadHistory();
+  } catch(e){setPairError(e instanceof Error?e.message:String(e))}
+  finally{setPairBusy(false)}
+ };
  useEffect(()=>{if(!current||done(current.status))return;const timer=window.setInterval(()=>{void loadJob(current.id).catch(e=>setError(String(e)))},1100);return()=>window.clearInterval(timer)},[current?.id,current?.status,loadJob]);
  const run=async(e:FormEvent<HTMLFormElement>)=>{
   e.preventDefault();setError('');setPending(true);
@@ -77,7 +111,7 @@ export default function App(){
   if(!window.confirm('Delete this local experiment record? SQLite backups may retain earlier copies.'))return;
   setError('');
   try {
-   const response=await fetch('/api/v1/experiments/'+id,{method:'DELETE'});
+   const response=await authorizedFetch('/api/v1/experiments/'+id,{method:'DELETE'});
    if(!response.ok)throw new Error(response.status===409?'Cancel the running job before deletion.':'Unable to delete experiment.');
    if(current?.id===id){setCurrent(null);setSubmitted(null);setManifest(null)}
    await loadHistory();
@@ -105,15 +139,28 @@ export default function App(){
  };
  const busy=pending||Boolean(current&&!done(current.status));
  const result=current?.result; const rms=result?.activation_rms_delta?.[cell[0]]?.[cell[1]];
+
+ if(pairingRequired&&!authenticated)return <div className="pair-screen">
+  <form className="pair-card" onSubmit={pairBrowser}>
+   <span className="pair-icon"><BrainCircuit size={30}/></span>
+   <h1>Connect to your local Cortex</h1>
+   <p>Enter the nine-digit code displayed in the app launcher or terminal. The code works once per server launch and is never saved to experiment history.</p>
+   <label htmlFor="cortex-pair-code">PAIRING CODE</label>
+   <input id="cortex-pair-code" aria-label="Pairing code" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{9}" maxLength={9} required value={pairCode} onChange={e=>setPairCode(e.target.value.replace(/\D/g,''))} placeholder="9-digit code"/>
+   {pairError&&<p role="alert" className="pair-error">{pairError}</p>}
+   <button type="submit" className="primary" disabled={pairBusy||pairCode.length!==9}>{pairBusy?'Connecting…':'Unlock local studio'}</button>
+   <small>This protects the app from unauthenticated local HTTP clients without the code. It cannot protect against malicious software with access to your operating-system account.</small>
+  </form>
+ </div>;
  return <div className="shell"><aside className="sidebar">
  <div className="brand"><span className="logo"><BrainCircuit size={22}/></span>Cortex <strong>Debugger</strong></div>
  <div className="aside-label">WORKSPACE</div>
  <button className={'side-link '+(tab==='studio'?'selected':'')} onClick={()=>setTab('studio')}><FlaskConical size={17}/> Experiment <ChevronRight size={15}/></button>
  <button className={'side-link '+(tab==='history'?'selected':'')} onClick={()=>{setTab('history');void loadHistory()}}><History size={17}/> History <small>{history.length}</small></button>
  <hr/><div className="aside-label">MODEL</div><div className="model"><Cpu size={18}/><div>GPT-2 Small<small>12 layers · local weights</small></div></div>
- <div className="aside-foot"><span className={'indicator '+(connected?'ok':'')}/>{connected?'Local API connected':'API offline'}<small>M10 · release candidate</small></div>
+ <div className="aside-foot"><span className={'indicator '+(connected?'ok':'')}/>{connected?'Local API connected':'API offline'}<small>M11 · authentication preview</small></div>
  </aside><main><header><span>CORTEX / {tab==='studio'?'EXPERIMENT STUDIO':'HISTORY'}</span><div><span className="local-pill">LOCAL ONLY</span><span>v0.10.0-rc1</span></div></header>
- <div className="content"><div className="heading"><div><div className="eyebrow">MECHANISTIC INTERPRETABILITY / M10</div><h1>{tab==='studio'?'Experiment studio':'Experiment history'}</h1><p>Compare model runs, intervene on residual activations, and inspect measured effects.</p></div><span className="model-pill"><Activity size={13}/> GPT-2 ENGINE</span></div>
+ <div className="content"><div className="heading"><div><div className="eyebrow">MECHANISTIC INTERPRETABILITY / M11</div><h1>{tab==='studio'?'Experiment studio':'Experiment history'}</h1><p>Compare model runs, intervene on residual activations, and inspect measured effects.</p></div><span className="model-pill"><Activity size={13}/> GPT-2 ENGINE</span></div>
  {error&&<div className="error" role="alert"><AlertCircle size={16}/>{error}<button onClick={()=>setError('')} aria-label="Dismiss">×</button></div>}
  {!connected&&<div className="notice"><Info size={15}/>API offline. Run <code>uvicorn apps.api.main:app --host 127.0.0.1 --port 8000</code> then refresh.</div>}
  {tab==='studio'&&connected&&<section className="runtime-readiness" aria-label="Local runtime readiness">

@@ -48,3 +48,16 @@ main{flex:1;min-width:0}header{border-bottom:1px solid #263547;height:70px;displ
 .runtime-readiness .secondary{white-space:nowrap}
 .runtime-note{flex-basis:100%;font-size:11px;color:#899fb7;margin:0}
 @media(max-width:700px){.runtime-readiness{padding:13px}.runtime-checks{width:100%}}
+
+/* M11 browser capability pairing. No code or bearer token is persisted to disk. */
+.pair-screen{min-height:100vh;display:grid;place-items:center;padding:24px;background:#0c1422}
+.pair-card{width:100%;max-width:440px;background:#172238;border:1px solid #344258;border-radius:24px;padding:32px;display:flex;flex-direction:column;gap:14px;box-shadow:0 25px 80px #0004}
+.pair-icon{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;color:#8dc7ff;background:#213954}
+.pair-card h1{font-size:24px;letter-spacing:-.7px;margin:0;color:#eef5ff}
+.pair-card p{color:#a8b9cf;font-size:13px;line-height:1.7;margin:0}
+.pair-card label{font-size:11px;font-weight:700;letter-spacing:.1em;color:#b8c8db;margin-top:8px}
+.pair-card input{width:100%;padding:15px;border-radius:11px;border:1px solid #456078;background:#101b2c;color:#f4f8fc;font-size:23px;letter-spacing:.16em;font-variant-numeric:tabular-nums}
+.pair-card button{justify-content:center;min-height:47px}
+.pair-card small{font-size:11px;color:#859ab1;line-height:1.5}
+.pair-card .pair-error{color:#ffb3b3}
+@media(max-width:520px){.pair-card{padding:24px}.pair-card h1{font-size:21px}}

@@ -1,3 +1,29 @@
+## M11 development preview — one-time local browser pairing
+
+**M11 source changes are not in the published v0.10.0-rc1 assets.**
+The Windows and macOS bootstrap launchers now generate a nine-digit
+one-time pairing code per launch. Users enter it in the local browser once
+to obtain a random, process-scoped bearer token stored only in that browser
+tab's `sessionStorage`. All non-public model/experiment API calls then
+require the bearer token. Failed code attempts are capped; the code expires
+after ten minutes and cannot be reused after successful pairing. Restarting
+the application revokes the token.
+
+The Windows native GUI displays a pairing code in its control panel.
+macOS Terminal or standalone shell launch displays the code only when
+attached to a terminal, not in redirected CI logs.
+
+**Security scope:** this prevents unauthenticated API clients *without the
+one-time code or bearer*. It cannot provide an operating-system boundary
+against malicious software running under the same user. Such software can
+inspect processes, launch environment or browser session memory. A dedicated
+owner-bound named pipe/Unix socket remains future work.
+
+Direct source developer launch via `uvicorn apps.api.main:app` remains in
+an explicitly *unauthenticated compatibility mode* unless
+`CORTEX_PAIRING_CODE` is configured before startup. Do not expose even
+paired localhost HTTP services to a LAN/public network.
+
 ## M10 v0.10.0-rc1 — local browser protection and setup readiness
 
 **v0.10.0-rc1 has now been published and model-validated on Linux, Apple Silicon macOS and Windows x64.** The previous v0.9.0-rc1 assets remain unchanged.

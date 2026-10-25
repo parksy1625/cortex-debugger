@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Drawing;
 using System.Net.Http;
 using System.Windows.Forms;
@@ -109,7 +110,8 @@ internal sealed class CortexWindow : Form
         }
         start.Enabled = false;
         stop.Enabled = true;
-        status.Text = "Installing local dependencies / starting model API…";
+        string pairingCode = RandomNumberGenerator.GetInt32(0, 1000000000).ToString("D9");
+        status.Text = "Pairing code: " + pairingCode;
         try
         {
             process = new Process
@@ -126,6 +128,7 @@ internal sealed class CortexWindow : Form
                 },
                 EnableRaisingEvents = true
             };
+            process.StartInfo.Environment["CORTEX_PAIRING_CODE"] = pairingCode;
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
@@ -142,7 +145,7 @@ internal sealed class CortexWindow : Form
                         "http://127.0.0.1:8000/api/v1/health", closed.Token);
                     if (response.IsSuccessStatusCode)
                     {
-                        status.Text = "Running locally · http://127.0.0.1:8000";
+                        status.Text = "Pairing code: " + pairingCode + " · Running locally";
                         open.Enabled = true;
                         OpenBrowser();
                         return;

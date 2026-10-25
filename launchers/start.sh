@@ -37,6 +37,17 @@ if [[ ! -f "$VENV/.cortex-m8-ready" ]]; then
   touch "$VENV/.cortex-m8-ready"
 fi
 
+# Each server launch uses a fresh random 9-digit, single-use pairing code.
+# A native GUI launcher can pre-provision the code via process environment.
+if [[ -z "${CORTEX_PAIRING_CODE:-}" ]]; then
+  CORTEX_PAIRING_CODE="$("$VENV/bin/python" -c 'import secrets; print(f"{secrets.randbelow(10**9):09d}")')"
+fi
+export CORTEX_PAIRING_CODE
+# Never print the secret into redirected CI/server log files.
+if [[ -t 1 ]]; then
+  echo "Cortex pairing code: $CORTEX_PAIRING_CODE"
+  echo "Type this once in the local browser to unlock your session."
+fi
 echo "Cortex Debugger local app: http://127.0.0.1:8000/"
 echo "Ctrl+C to stop. No network interface is exposed."
 exec "$VENV/bin/python" -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000 --workers 1
