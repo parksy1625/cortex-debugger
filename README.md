@@ -1,6 +1,12 @@
-## M11 development preview — one-time local browser pairing
+## M11 v0.11.0-rc1 — one-time local browser pairing
 
-**M11 source changes are not in the published v0.10.0-rc1 assets.**
+**M11 is published and verified separately from v0.10.0-rc1.**
+Download the model-tested builds:
+[Mac Finder app](https://github.com/parksy1625/cortex-debugger/releases/download/v0.11.0-rc1/Cortex-Debugger-macOS-App-v0.11.0-rc1.zip),
+[Windows GUI](https://github.com/parksy1625/cortex-debugger/releases/download/v0.11.0-rc1/Cortex-Debugger-Windows-v0.11.0-rc1.zip),
+or [cross-platform ZIP](https://github.com/parksy1625/cortex-debugger/releases/download/v0.11.0-rc1/Cortex-Debugger-v0.11.0-rc1.zip).
+See [M11 validation](docs/M11_VALIDATION.md).
+
 The Windows and macOS bootstrap launchers now generate a nine-digit
 one-time pairing code per launch. Users enter it in the local browser once
 to obtain a random, process-scoped bearer token stored only in that browser

@@ -1,17 +1,19 @@
-# After M10
+# After M11: authenticated local model workbench
 
-1. Complete: M10 published independently as v0.10.0-rc1, validated by
-   actual GPT-2 browser/package smoke on Linux and native launchers on
-   Apple Silicon MPS and Windows x64.
-2. Complete: browser Host/Origin/Fetch-Site safeguards, model-free runtime
-   diagnostics and 1 MiB model-worker IPC response budget.
-3. Highest priority: **actual local API authentication or owner-bound IPC**;
-   Host/Origin checks are not sufficient against malicious local programs.
-4. Implement detailed first-run install/model download progress and correct
-   error recovery in desktop launchers, plus real GUI click automation.
-5. Add signed/notarized macOS/Windows releases with trusted publisher
-   credentials managed outside source control. Document update/rollback.
-6. Implement OS hard memory limits where possible, controlled data retention,
-   and safe user-selectable local-model and checkpoint storage.
-7. Expand causal experiment breadth only after model validation and
-   reproducibility test coverage.
+Completed: v0.11.0-rc1 published with real-model tests through a
+one-time pairing code and per-process bearer token on Linux, Apple MPS,
+and Windows CPU. Browser Host/Origin/Fetch-Site guards remain enabled.
+
+1. OS-verified **owner-bound local IPC**: Unix socket peer credentials
+   on macOS/Linux, Windows named-pipe peer identity and strict ACLs.
+   Browser pairing is application-level auth, not an OS trust boundary.
+2. GUI onboarding: more accurate model-download progress, capacity
+   estimates, first-use cancellation and installation troubleshooting.
+3. Native Windows GUI click tests / macOS Finder LaunchServices GUI tests;
+   current CI uses headless launcher executable smoke.
+4. Code signing, macOS notarization, verified release attestations,
+   update channels and rollback; requires owner-managed credentials.
+5. Avoid spawning user-editable interpreters or loading untrusted model
+   checkpoint code without sandboxing; hard memory budgeting.
+6. Better model backends and scientific evaluation beyond the pinned
+   GPT-2 activation intervention once regression suites are ready.

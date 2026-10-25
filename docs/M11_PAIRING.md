@@ -39,6 +39,6 @@ production pairing codes into shell history or shared logs.
 
 ## Release
 
-The published `v0.10.0-rc1` artifacts are unchanged; M11 requires
-successful source/packaged cross-platform smoke tests before a new
-versioned release can be published.
+The `v0.11.0-rc1` release is now published with independently verified
+Linux, Apple Silicon MPS, and Windows CPU bootstrap packages. Prior v0.10
+release assets were not overwritten. See [measured evidence](M11_VALIDATION.md).
