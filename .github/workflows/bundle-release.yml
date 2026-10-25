@@ -3,13 +3,13 @@ name: Local bundle and release
 on:
   push:
     branches: [main]
-    tags: ['v0.10.0-rc1']
+    tags: ['v0.11.0-rc1']
     paths:
       - 'apps/**'
       - 'packages/**'
       - 'scripts/build_release.py'
       - 'launchers/**'
-      - 'docs/M10_RELEASE.md'
+      - 'docs/M11_RELEASE.md'
       - '.github/workflows/bundle-release.yml'
       - 'pyproject.toml'
       - 'requirements-linux-py311.lock'
@@ -54,7 +54,7 @@ jobs:
           sha256sum -c *.sha256
       - name: Extract exactly the uploaded ZIP for smoke testing
         run: |
-          python -m zipfile -e artifacts/Cortex-Debugger-v0.10.0-rc1.zip /tmp/cortex-m8-extracted
+          python -m zipfile -e artifacts/Cortex-Debugger-v0.11.0-rc1.zip /tmp/cortex-m8-extracted
           test -f /tmp/cortex-m8-extracted/apps/web/dist/index.html
           test -f /tmp/cortex-m8-extracted/start.sh
           python -m venv /tmp/cortex-m8-venv
@@ -66,15 +66,17 @@ jobs:
       - name: Boot extracted ZIP and verify same-origin UI/API
         run: |
           cd /tmp/cortex-m8-extracted
-          CORTEX_DATA_DIR=/tmp/cortex-m8-data /tmp/cortex-m8-venv/bin/python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000 >/tmp/cortex-m8-server.log 2>&1 &
+          CORTEX_PAIRING_CODE=123456789 CORTEX_DATA_DIR=/tmp/cortex-m8-data /tmp/cortex-m8-venv/bin/python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000 >/tmp/cortex-m8-server.log 2>&1 &
           echo $! >/tmp/cortex-m8-server.pid
           curl --retry 30 --retry-delay 2 --retry-connrefused -f http://127.0.0.1:8000/api/v1/health
           curl -f http://127.0.0.1:8000/ | grep -q '<div id="root"'
-          curl -f http://127.0.0.1:8000/api/v1/models | grep -q 'openai-community/gpt2'
+          curl -fsS http://127.0.0.1:8000/api/v1/auth/status | grep -q '"enabled":true'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/v1/models)" = "401"
       - name: Real model via packaged UI and FastAPI
         working-directory: apps/web
         env:
           CORTEX_LIVE_MODEL: '1'
+          CORTEX_TEST_PAIRING_CODE: '123456789'
         run: npx playwright test tests/live-model.spec.ts --config playwright.release.config.ts
       - name: Stop extracted app
         if: always()
@@ -84,10 +86,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Cortex-Debugger-v0.10.0-rc1
+          name: Cortex-Debugger-v0.11.0-rc1
           path: |
-            artifacts/Cortex-Debugger-v0.10.0-rc1.zip
-            artifacts/Cortex-Debugger-v0.10.0-rc1.zip.sha256
+            artifacts/Cortex-Debugger-v0.11.0-rc1.zip
+            artifacts/Cortex-Debugger-v0.11.0-rc1.zip.sha256
           if-no-files-found: warn
       - name: Upload packaging test trace on failure
         if: failure()
@@ -102,7 +104,7 @@ jobs:
 
   publish-tagged-release:
     needs: bundle-smoke
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/tags/v0.10.0-rc1'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/tags/v0.11.0-rc1'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -110,7 +112,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: Cortex-Debugger-v0.10.0-rc1
+          name: Cortex-Debugger-v0.11.0-rc1
           path: artifacts
       - name: Publish verified ZIP and checksum to GitHub Releases
         env:
@@ -118,12 +120,12 @@ jobs:
         run: |
           cd artifacts
           sha256sum -c *.sha256
-          if gh release view v0.10.0-rc1 >/dev/null 2>&1; then
+          if gh release view v0.11.0-rc1 >/dev/null 2>&1; then
             echo "Verified release candidate already exists"
           else
-            gh release create v0.10.0-rc1 ./*.zip ./*.sha256 \
+            gh release create v0.11.0-rc1 ./*.zip ./*.sha256 \
               --target "$GITHUB_SHA" \
-              --title "Cortex Debugger v0.10.0-rc1" \
-              --notes "M8 local runtime release candidate. ZIP verified by extracting into a fresh Python environment and running real GPT-2 Chromium end-to-end. First launch requires Python 3.11+, an internet connection and model downloads. Localhost-only, not an offline installer or signed executable." \
+              --title "Cortex Debugger v0.11.0-rc1" \
+              --notes "M11 local runtime release candidate: one-time browser pairing and token-required experiment API, verified from a fresh ZIP against real GPT-2 Chromium. First launch requires Python 3.11+, an internet connection and model downloads. Localhost-only, not an offline installer or signed executable." \
               --prerelease
           fi

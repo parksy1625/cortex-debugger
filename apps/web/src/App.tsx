@@ -159,7 +159,7 @@ export default function App(){
  <button className={'side-link '+(tab==='history'?'selected':'')} onClick={()=>{setTab('history');void loadHistory()}}><History size={17}/> History <small>{history.length}</small></button>
  <hr/><div className="aside-label">MODEL</div><div className="model"><Cpu size={18}/><div>GPT-2 Small<small>12 layers · local weights</small></div></div>
  <div className="aside-foot"><span className={'indicator '+(connected?'ok':'')}/>{connected?'Local API connected':'API offline'}<small>M11 · authentication preview</small></div>
- </aside><main><header><span>CORTEX / {tab==='studio'?'EXPERIMENT STUDIO':'HISTORY'}</span><div><span className="local-pill">LOCAL ONLY</span><span>v0.10.0-rc1</span></div></header>
+ </aside><main><header><span>CORTEX / {tab==='studio'?'EXPERIMENT STUDIO':'HISTORY'}</span><div><span className="local-pill">LOCAL ONLY</span><span>v0.11.0-rc1</span></div></header>
  <div className="content"><div className="heading"><div><div className="eyebrow">MECHANISTIC INTERPRETABILITY / M11</div><h1>{tab==='studio'?'Experiment studio':'Experiment history'}</h1><p>Compare model runs, intervene on residual activations, and inspect measured effects.</p></div><span className="model-pill"><Activity size={13}/> GPT-2 ENGINE</span></div>
  {error&&<div className="error" role="alert"><AlertCircle size={16}/>{error}<button onClick={()=>setError('')} aria-label="Dismiss">×</button></div>}
  {!connected&&<div className="notice"><Info size={15}/>API offline. Run <code>uvicorn apps.api.main:app --host 127.0.0.1 --port 8000</code> then refresh.</div>}

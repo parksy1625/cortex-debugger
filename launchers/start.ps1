@@ -14,7 +14,7 @@ if (-not (Test-Path $venvPython)) {
 }
 $wheel = Get-ChildItem (Join-Path $root 'wheel') -Filter 'cortex_debugger-*.whl' | Select-Object -First 1
 if (-not $wheel) { throw 'Cortex package wheel missing' }
-$marker = Join-Path $root '.venv\.cortex-m8-ready'
+$marker = Join-Path $root '.venv\.cortex-m11-ready'
 if (-not (Test-Path $marker)) {
     & $venvPython -m pip install --upgrade pip
     if ($LASTEXITCODE -ne 0) { throw 'pip upgrade failed' }

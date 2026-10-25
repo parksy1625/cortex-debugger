@@ -22,7 +22,7 @@ if [[ -z "$WHEEL" ]]; then
   exit 2
 fi
 
-if [[ ! -f "$VENV/.cortex-m8-ready" ]]; then
+if [[ ! -f "$VENV/.cortex-m11-ready" ]]; then
   "$VENV/bin/python" -m pip install --upgrade pip
   if [[ "$(uname -s)" == "Linux" ]]; then
     # Official CPU wheel prevents a large unrequested CUDA toolchain.
@@ -34,7 +34,7 @@ if [[ ! -f "$VENV/.cortex-m8-ready" ]]; then
     "$VENV/bin/python" -m pip install 'torch==2.7.1'
     "$VENV/bin/python" -m pip install "${WHEEL}[ml,api]"
   fi
-  touch "$VENV/.cortex-m8-ready"
+  touch "$VENV/.cortex-m11-ready"
 fi
 
 # Each server launch uses a fresh random 9-digit, single-use pairing code.

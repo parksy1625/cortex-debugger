@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
-VERSION = "v0.10.0-rc1"
+VERSION = "v0.11.0-rc1"
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -39,7 +39,7 @@ def build(root: Path, output: Path) -> dict:
         for source, name in [
             (root / "launchers" / "start.sh", "start.sh"),
             (root / "launchers" / "start.ps1", "start.ps1"),
-            (root / "docs" / "M10_RELEASE.md", "README-RELEASE.md"),
+            (root / "docs" / "M11_RELEASE.md", "README-RELEASE.md"),
             (root / "LICENSE", "LICENSE"),
             (root / "requirements-linux-py311.lock", "requirements-linux-py311.lock"),
             (wheels[0], f"wheel/{wheels[0].name}"),
