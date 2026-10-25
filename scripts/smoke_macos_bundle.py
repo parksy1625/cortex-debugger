@@ -3,22 +3,40 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from urllib.request import Request, urlopen
 
 HOST = "http://127.0.0.1:8000"
 REVISION = "607a30d783dfa663caf39e06633721c8d4cfcd7e"
+HEADERS: dict[str, str] = {}
+
+
+def authorize() -> None:
+    code = os.getenv("CORTEX_TEST_PAIRING_CODE")
+    if not code:
+        return
+    request = Request(
+        HOST + "/api/v1/auth/pair", method="POST",
+        data=json.dumps({"code": code}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    with urlopen(request, timeout=20) as response:
+        token = json.load(response)["token"]
+    HEADERS["Authorization"] = "Bearer " + token
+
 
 
 def get(route: str) -> dict:
-    with urlopen(HOST + route, timeout=15) as response:
+    with urlopen(Request(HOST + route, headers=HEADERS), timeout=15) as response:
         return json.load(response)
 
 
 def main() -> None:
     status = get("/api/v1/health")
     assert status["status"] == "ok"
-    assert status["stage"] == "M10"
+    assert status["stage"] == "M11"
+    authorize()
 
     experiment = {
         "clean": "The dog runs",
@@ -33,7 +51,7 @@ def main() -> None:
     request = Request(
         HOST + "/api/v1/experiments",
         data=json.dumps(experiment).encode(),
-        headers={"Content-Type": "application/json"},
+        headers={**HEADERS, "Content-Type": "application/json"},
         method="POST",
     )
     with urlopen(request, timeout=15) as response:

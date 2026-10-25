@@ -15,14 +15,14 @@ from pathlib import Path
 from zipfile import ZipFile
 
 NAME = "Cortex Debugger.app"
-VERSION = "0.10.0rc1"
+VERSION = "0.11.0rc1"
 
 LAUNCHER = r'''#!/bin/bash
 set -euo pipefail
 CONTENTS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RESOURCE_DIR="$CONTENTS/Resources/runtime"
 BASE="${CORTEX_RUNTIME_HOME:-$HOME/Library/Application Support/Cortex Debugger}"
-WORK_DIR="$BASE/v0.10.0-rc1"
+WORK_DIR="$BASE/v0.11.0-rc1"
 if [[ ! -f "$WORK_DIR/start.sh" ]]; then
     mkdir -p "$WORK_DIR"
     /usr/bin/ditto "$RESOURCE_DIR" "$WORK_DIR"
@@ -79,8 +79,8 @@ def build(package_zip: Path, destination: Path) -> Path:
         "CFBundleName": "Cortex Debugger",
         "CFBundleDisplayName": "Cortex Debugger",
         "CFBundleIdentifier": "dev.cortexdebugger.local",
-        "CFBundleVersion": "0.10.0.1",
-        "CFBundleShortVersionString": "0.10.0",
+        "CFBundleVersion": "0.11.0.1",
+        "CFBundleShortVersionString": "0.11.0",
         "CFBundlePackageType": "APPL",
         "CFBundleExecutable": "CortexDebugger",
         "LSMinimumSystemVersion": "13.0",

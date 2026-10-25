@@ -57,7 +57,7 @@ internal sealed class CortexWindow : Form
         };
         var subtitle = new Label
         {
-            Text = "Local-first AI model analysis  ·  v0.10.0-rc1",
+            Text = "Local-first AI model analysis  ·  v0.11.0-rc1",
             Font = new Font("Segoe UI", 10),
             ForeColor = Color.FromArgb(151, 168, 194),
             AutoSize = true,

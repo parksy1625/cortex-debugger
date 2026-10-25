@@ -22,23 +22,26 @@ jobs:
         with:
           python-version: '3.11'
           architecture: x64
-      - name: Download public v0.10.0-rc1 ZIP and verify SHA256
+      - name: Download public v0.11.0-rc1 ZIP and verify SHA256
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $dir = Join-Path $env:RUNNER_TEMP "cortex-m9-windows"
           New-Item -ItemType Directory -Path $dir -Force | Out-Null
-          gh release download v0.10.0-rc1 --repo parksy1625/cortex-debugger --pattern 'Cortex-Debugger-v0.10.0-rc1.zip' --dir $dir
-          gh release download v0.10.0-rc1 --repo parksy1625/cortex-debugger --pattern 'Cortex-Debugger-v0.10.0-rc1.zip.sha256' --dir $dir
-          $zip = Join-Path $dir "Cortex-Debugger-v0.10.0-rc1.zip"
-          $checksum = (Get-Content (Join-Path $dir "Cortex-Debugger-v0.10.0-rc1.zip.sha256") -Raw).Split(' ')[0].Trim().ToLowerInvariant()
+          gh release download v0.11.0-rc1 --repo parksy1625/cortex-debugger --pattern 'Cortex-Debugger-v0.11.0-rc1.zip' --dir $dir
+          gh release download v0.11.0-rc1 --repo parksy1625/cortex-debugger --pattern 'Cortex-Debugger-v0.11.0-rc1.zip.sha256' --dir $dir
+          $zip = Join-Path $dir "Cortex-Debugger-v0.11.0-rc1.zip"
+          $checksum = (Get-Content (Join-Path $dir "Cortex-Debugger-v0.11.0-rc1.zip.sha256") -Raw).Split(' ')[0].Trim().ToLowerInvariant()
           $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actual -ne $checksum) { throw "Release ZIP checksum mismatch" }
           Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $dir "runtime") -Force
           if (-not (Test-Path (Join-Path $dir "runtime\start.ps1"))) { throw "Missing PowerShell launcher" }
       - name: Start actual packaged local server using PowerShell launcher
         shell: pwsh
+        env:
+          CORTEX_PAIRING_CODE: '123456789'
+          CORTEX_TEST_PAIRING_CODE: '123456789'
         run: |
           $dir = Join-Path $env:RUNNER_TEMP "cortex-m9-windows"
           $root = Join-Path $dir "runtime"
@@ -97,24 +100,24 @@ jobs:
         shell: pwsh
         run: |
           $dir = Join-Path $env:RUNNER_TEMP "cortex-m9-windows"
-          $original = Join-Path $dir "Cortex-Debugger-v0.10.0-rc1.zip"
+          $original = Join-Path $dir "Cortex-Debugger-v0.11.0-rc1.zip"
           $portable = Join-Path $dir "portable"
           Expand-Archive -LiteralPath $original -DestinationPath $portable -Force
           Copy-Item "$env:RUNNER_TEMP/cortex-m9-exe/CortexDebugger.exe" -Destination (Join-Path $portable "CortexDebugger.exe")
           $check = Start-Process -FilePath (Join-Path $portable "CortexDebugger.exe") -ArgumentList "--self-test" -PassThru -Wait
           if ($check.ExitCode -ne 0) { throw "Native launcher portability self-test failed with $($check.ExitCode)" }
           New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE/artifacts" -Force | Out-Null
-          $zipPath = Join-Path $env:GITHUB_WORKSPACE "artifacts/Cortex-Debugger-Windows-v0.10.0-rc1.zip"
+          $zipPath = Join-Path $env:GITHUB_WORKSPACE "artifacts/Cortex-Debugger-Windows-v0.11.0-rc1.zip"
           Compress-Archive -Path (Join-Path $portable "*") -DestinationPath $zipPath -CompressionLevel Optimal
           $hash = (Get-FileHash -Algorithm SHA256 $zipPath).Hash.ToLowerInvariant()
-          "$hash  Cortex-Debugger-Windows-v0.10.0-rc1.zip" | Set-Content "$zipPath.sha256" -Encoding ascii -NoNewline
+          "$hash  Cortex-Debugger-Windows-v0.11.0-rc1.zip" | Set-Content "$zipPath.sha256" -Encoding ascii -NoNewline
           Write-Host "Windows GUI launcher compiled and package self-test passed."
       - uses: actions/upload-artifact@v4
         with:
           name: Cortex-Debugger-Windows-rc1
           path: |
-            artifacts/Cortex-Debugger-Windows-v0.10.0-rc1.zip
-            artifacts/Cortex-Debugger-Windows-v0.10.0-rc1.zip.sha256
+            artifacts/Cortex-Debugger-Windows-v0.11.0-rc1.zip
+            artifacts/Cortex-Debugger-Windows-v0.11.0-rc1.zip.sha256
           if-no-files-found: error
       - name: Upload redacted diagnostics only on failure
         if: failure()
@@ -142,4 +145,4 @@ jobs:
         run: |
           cd assets
           sha256sum -c *.sha256
-          gh release upload v0.10.0-rc1 *.zip *.sha256 --repo parksy1625/cortex-debugger --clobber
+          gh release upload v0.11.0-rc1 *.zip *.sha256 --repo parksy1625/cortex-debugger --clobber

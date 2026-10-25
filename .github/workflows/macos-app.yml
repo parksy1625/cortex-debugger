@@ -26,20 +26,21 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p "$RUNNER_TEMP/cortex-m9-download"
-          gh release download v0.10.0-rc1 --repo parksy1625/cortex-debugger --pattern 'Cortex-Debugger-v0.10.0-rc1.zip' --dir "$RUNNER_TEMP/cortex-m9-download"
-          gh release download v0.10.0-rc1 --repo parksy1625/cortex-debugger --pattern 'Cortex-Debugger-v0.10.0-rc1.zip.sha256' --dir "$RUNNER_TEMP/cortex-m9-download"
+          gh release download v0.11.0-rc1 --repo parksy1625/cortex-debugger --pattern 'Cortex-Debugger-v0.11.0-rc1.zip' --dir "$RUNNER_TEMP/cortex-m9-download"
+          gh release download v0.11.0-rc1 --repo parksy1625/cortex-debugger --pattern 'Cortex-Debugger-v0.11.0-rc1.zip.sha256' --dir "$RUNNER_TEMP/cortex-m9-download"
           cd "$RUNNER_TEMP/cortex-m9-download"
           shasum -a 256 -c *.sha256
       - name: Build native Finder .app container around published ZIP
         run: |
           python scripts/build_macos_app.py \
-            --zip "$RUNNER_TEMP/cortex-m9-download/Cortex-Debugger-v0.10.0-rc1.zip" \
+            --zip "$RUNNER_TEMP/cortex-m9-download/Cortex-Debugger-v0.11.0-rc1.zip" \
             --out "$RUNNER_TEMP/cortex-m9-built"
           plutil -lint "$RUNNER_TEMP/cortex-m9-built/Cortex Debugger.app/Contents/Info.plist"
           test -x "$RUNNER_TEMP/cortex-m9-built/Cortex Debugger.app/Contents/MacOS/CortexDebugger"
       - name: Boot extracted app launcher using first-run real installation
         run: |
           CORTEX_TEST_LAUNCH=1 \
+          CORTEX_PAIRING_CODE=123456789 \
           CORTEX_RUNTIME_HOME="$RUNNER_TEMP/cortex-m9-user" \
           CORTEX_DATA_DIR="$RUNNER_TEMP/cortex-m9-data" \
           CORTEX_JOB_TIMEOUT_SECONDS=300 \
@@ -51,20 +52,22 @@ jobs:
             sleep 5
           done
           curl -fsS http://127.0.0.1:8000/ | grep -q '<div id="root"'
-          test -f "$RUNNER_TEMP/cortex-m9-user/v0.10.0-rc1/.venv/.cortex-m8-ready"
+          test -f "$RUNNER_TEMP/cortex-m9-user/v0.11.0-rc1/.venv/.cortex-m11-ready"
       - name: Validate actual MPS GPT-2 intervention through app's local API
+        env:
+          CORTEX_TEST_PAIRING_CODE: '123456789'
         run: |
           python -c "import platform; assert platform.machine() == 'arm64'"
-          "$RUNNER_TEMP/cortex-m9-user/v0.10.0-rc1/.venv/bin/python" -c "import torch; assert torch.backends.mps.is_available()"
+          "$RUNNER_TEMP/cortex-m9-user/v0.11.0-rc1/.venv/bin/python" -c "import torch; assert torch.backends.mps.is_available()"
           python scripts/smoke_macos_bundle.py
       - name: Pack Finder application and checksum
         run: |
           mkdir -p artifacts
           cd "$RUNNER_TEMP/cortex-m9-built"
-          ditto -c -k --sequesterRsrc --keepParent "Cortex Debugger.app" "$GITHUB_WORKSPACE/artifacts/Cortex-Debugger-macOS-App-v0.10.0-rc1.zip"
+          ditto -c -k --sequesterRsrc --keepParent "Cortex Debugger.app" "$GITHUB_WORKSPACE/artifacts/Cortex-Debugger-macOS-App-v0.11.0-rc1.zip"
           cd "$GITHUB_WORKSPACE/artifacts"
-          shasum -a 256 Cortex-Debugger-macOS-App-v0.10.0-rc1.zip > Cortex-Debugger-macOS-App-v0.10.0-rc1.zip.sha256
-          shasum -a 256 -c Cortex-Debugger-macOS-App-v0.10.0-rc1.zip.sha256
+          shasum -a 256 Cortex-Debugger-macOS-App-v0.11.0-rc1.zip > Cortex-Debugger-macOS-App-v0.11.0-rc1.zip.sha256
+          shasum -a 256 -c Cortex-Debugger-macOS-App-v0.11.0-rc1.zip.sha256
       - name: Shut down test app
         if: always()
         run: |
@@ -74,8 +77,8 @@ jobs:
         with:
           name: Cortex-Debugger-Mac-App-rc1
           path: |
-            artifacts/Cortex-Debugger-macOS-App-v0.10.0-rc1.zip
-            artifacts/Cortex-Debugger-macOS-App-v0.10.0-rc1.zip.sha256
+            artifacts/Cortex-Debugger-macOS-App-v0.11.0-rc1.zip
+            artifacts/Cortex-Debugger-macOS-App-v0.11.0-rc1.zip.sha256
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -100,4 +103,4 @@ jobs:
         run: |
           cd assets
           sha256sum -c *.sha256
-          gh release upload v0.10.0-rc1 *.zip *.sha256 --repo parksy1625/cortex-debugger --clobber
+          gh release upload v0.11.0-rc1 *.zip *.sha256 --repo parksy1625/cortex-debugger --clobber
