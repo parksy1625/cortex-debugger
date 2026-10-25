@@ -50,3 +50,11 @@ unnecessary. Never set `CORTEX_DEV_ORIGIN` to an internet domain.
 M10 changes on main are **development work**, not yet packaged into the
 existing published v0.9.0-rc1 assets. A new version/tag and platform
 validation are required before describing these improvements as shipped.
+
+## Worker IPC protection (M10)
+
+The isolated model process now accepts a maximum 1 MiB JSON-line response.
+The parent uses bounded `readline()` calls and terminates a worker that
+sends an oversize result before decoding JSON. This caps *a single worker
+message* in the parent. Model memory and result processing remain subject
+to separate resource limits; this is not an arbitrary-code sandbox.

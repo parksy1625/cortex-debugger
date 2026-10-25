@@ -141,3 +141,25 @@ def test_manager_running_job_is_cancellable_and_restartable(tmp_path):
         assert "secret" not in json.dumps(manager.get(second))
     finally:
         manager.shutdown()
+
+
+def test_untrusted_worker_cannot_emit_unbounded_ipc():
+    """A malicious or corrupted child may never allocate an unlimited line."""
+    from apps.api.model_process import MAX_IPC_MESSAGE_CHARS, WorkerExited
+
+    script = (
+        "import sys; sys.stdin.readline();"
+        "sys.stdout.write('x' * ("
+        + str(MAX_IPC_MESSAGE_CHARS + 100)
+        + ") + '\\n');sys.stdout.flush()"
+    )
+    child = ModelProcess(
+        timeout_seconds=5,
+        command=[sys.executable, "-u", "-c", script],
+    )
+    try:
+        with pytest.raises(WorkerExited, match="exceeded safe IPC size"):
+            child.execute({}, threading.Event())
+        assert child.status()["worker_pid"] is None
+    finally:
+        child.stop()

@@ -2,7 +2,8 @@ name: Local bundle and release
 
 on:
   push:
-    branches: [main]
+    # The published v0.9 release is immutable. M10 main must not rebuild
+    # a different ZIP under the old v0.9 filename.
     tags: ['v0.9.0-rc1']
     paths:
       - 'apps/**'
@@ -102,7 +103,7 @@ jobs:
 
   publish-tagged-release:
     needs: bundle-smoke
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/tags/v0.9.0-rc1'
+    if: github.ref == 'refs/tags/v0.9.0-rc1'
     runs-on: ubuntu-latest
     permissions:
       contents: write

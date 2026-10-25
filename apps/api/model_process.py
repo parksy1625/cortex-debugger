@@ -19,6 +19,11 @@ from typing import Any
 import psutil
 
 
+# JSON-lines uses json.dumps(ensure_ascii=True) in worker, so line length
+# also bounds encoded UTF-8 payload size for normal model reports.
+MAX_IPC_MESSAGE_CHARS = 1_048_576
+
+
 class WorkerCancelled(RuntimeError):
     pass
 
@@ -70,8 +75,13 @@ class ModelProcess:
 
         def reader() -> None:
             try:
-                for line in stdout:
+                while True:
+                    line = stdout.readline(MAX_IPC_MESSAGE_CHARS + 1)
+                    if not line:
+                        break
                     mailbox.put(line)
+                    if len(line) > MAX_IPC_MESSAGE_CHARS:
+                        break
             finally:
                 mailbox.put(None)
 
@@ -159,6 +169,9 @@ class ModelProcess:
                 if cancel.is_set():
                     raise WorkerCancelled("Model operation was cancelled")
                 raise WorkerExited("Model process exited without a result")
+            if len(line) > MAX_IPC_MESSAGE_CHARS:
+                self.stop()
+                raise WorkerExited("Model worker response exceeded safe IPC size")
             try:
                 response = json.loads(line)
             except json.JSONDecodeError as exc:
