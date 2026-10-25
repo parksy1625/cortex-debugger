@@ -18,8 +18,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from apps.api.experiments import ExperimentManager, NotCancellable, QueueFull
-from apps.api.privacy import shareable_report
 from apps.api.local_security import protect_local_requests
+from apps.api.privacy import shareable_report
 
 app = FastAPI(title="Cortex Debugger API", version=__version__, docs_url="/api/docs")
 app.middleware("http")(protect_local_requests)
