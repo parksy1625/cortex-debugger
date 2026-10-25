@@ -1,6 +1,6 @@
 ## M10 v0.10.0-rc1 — local browser protection and setup readiness
 
-**v0.10.0-rc1 is a separate release candidate.** The previously published v0.9.0-rc1 packages are unchanged. The M10 ZIP must pass actual model-backed packaged smoke tests before being published.
+**v0.10.0-rc1 has now been published and model-validated on Linux, Apple Silicon macOS and Windows x64.** The previous v0.9.0-rc1 assets remain unchanged.
 
 - Local API rejects non-loopback `Host` values and cross-site browser requests
   to reduce DNS-rebinding and malicious webpage request risks.
@@ -14,6 +14,19 @@
 - These measures are **not local API authentication**. An untrusted process
   running under the same OS user can speak directly to the loopback service.
   Authenticated IPC and stronger local boundaries remain open research.
+
+### M10 downloads (model-backed smoke verified)
+
+- [macOS Apple Silicon Finder .app ZIP](https://github.com/parksy1625/cortex-debugger/releases/download/v0.10.0-rc1/Cortex-Debugger-macOS-App-v0.10.0-rc1.zip) — [Apple MPS app test](https://github.com/parksy1625/cortex-debugger/actions/runs/40166418684).
+- [Windows x64 portable GUI .exe ZIP](https://github.com/parksy1625/cortex-debugger/releases/download/v0.10.0-rc1/Cortex-Debugger-Windows-v0.10.0-rc1.zip) — [native launcher plus CPU inference test](https://github.com/parksy1625/cortex-debugger/actions/runs/40166418604).
+- [Python/web runtime bootstrap ZIP](https://github.com/parksy1625/cortex-debugger/releases/download/v0.10.0-rc1/Cortex-Debugger-v0.10.0-rc1.zip) — [extracted Linux/Chromium inference test](https://github.com/parksy1625/cortex-debugger/actions/runs/40166264559).
+
+The Mac Finder launcher and Windows GUI are **not signed, notarized or
+completely offline/self-contained**; Python 3.11+ and a network connection
+are required on first setup. The native GUIs' manual interaction remains
+unverified; only non-interactive launcher paths were exercised in CI.
+
+For measurements and limitations see [M10 verification](docs/M10_VALIDATION.md).
 
 Run M10 source in local development:
 

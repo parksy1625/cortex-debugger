@@ -47,9 +47,11 @@ unnecessary. Never set `CORTEX_DEV_ORIGIN` to an internet domain.
 
 ## Release status
 
-M10 changes on main are **development work**, not yet packaged into the
-existing published v0.9.0-rc1 assets. A new version/tag and platform
-validation are required before describing these improvements as shipped.
+M10 has now shipped as a separate `v0.10.0-rc1` GitHub prerelease.
+The M9 v0.9 packages were not overwritten. GitHub-hosted Linux, Apple
+Silicon MPS and Windows x64 runner smoke checks succeeded. Native GUI
+interactive clicking, local API authorization, code signing and notarization
+are **not** included; see [M10 validation](M10_VALIDATION.md).
 
 ## Worker IPC protection (M10)
 
