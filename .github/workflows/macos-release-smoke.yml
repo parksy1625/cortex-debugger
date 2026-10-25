@@ -27,13 +27,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/cortex-m8-mac
-          gh release download v0.9.0-rc1 --repo parksy1625/cortex-debugger \
-            --pattern 'Cortex-Debugger-v0.9.0-rc1.zip' --dir /tmp/cortex-m8-mac
-          gh release download v0.9.0-rc1 --repo parksy1625/cortex-debugger \
-            --pattern '*.sha256' --dir /tmp/cortex-m8-mac
+          gh release download v0.10.0-rc1 --repo parksy1625/cortex-debugger \
+            --pattern 'Cortex-Debugger-v0.10.0-rc1.zip' --dir /tmp/cortex-m8-mac
+          gh release download v0.10.0-rc1 --repo parksy1625/cortex-debugger \
+            --pattern 'Cortex-Debugger-v0.10.0-rc1.zip.sha256' --dir /tmp/cortex-m8-mac
           cd /tmp/cortex-m8-mac
           shasum -a 256 -c *.sha256
-          python -m zipfile -e Cortex-Debugger-v0.9.0-rc1.zip runtime
+          python -m zipfile -e Cortex-Debugger-v0.10.0-rc1.zip runtime
       - name: Launch via published macOS bootstrap script
         run: |
           cd /tmp/cortex-m8-mac/runtime
