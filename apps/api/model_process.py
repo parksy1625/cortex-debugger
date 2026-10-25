@@ -18,7 +18,6 @@ from typing import Any
 
 import psutil
 
-
 # JSON-lines uses json.dumps(ensure_ascii=True) in worker, so line length
 # also bounds encoded UTF-8 payload size for normal model reports.
 MAX_IPC_MESSAGE_CHARS = 1_048_576
