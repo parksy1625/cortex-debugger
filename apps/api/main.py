@@ -1,8 +1,12 @@
 """Local-only Cortex API. Bind to 127.0.0.1; do not expose unauthenticated endpoints."""
 from __future__ import annotations
 
+import importlib.util
 import os
+import platform
 import re
+import shutil
+import sys
 import threading
 from pathlib import Path
 from typing import Literal
@@ -15,8 +19,10 @@ from pydantic import BaseModel, Field, field_validator
 
 from apps.api.experiments import ExperimentManager, NotCancellable, QueueFull
 from apps.api.privacy import shareable_report
+from apps.api.local_security import protect_local_requests
 
 app = FastAPI(title="Cortex Debugger API", version=__version__, docs_url="/api/docs")
+app.middleware("http")(protect_local_requests)
 _manager_lock = threading.Lock()
 
 def get_manager(request: Request) -> ExperimentManager:
@@ -61,7 +67,27 @@ class ExperimentRequest(BaseModel):
 
 @app.get("/api/v1/health")
 def health() -> dict:
-    return {"status": "ok", "stage": "M8", "version": __version__, "local_only": True}
+    return {"status": "ok", "stage": "M10", "version": __version__, "local_only": True}
+
+@app.get("/api/v1/setup")
+def setup_status() -> dict:
+    """Safe, no-model-load diagnostics for local first-run onboarding."""
+    directory = Path(os.environ.get("CORTEX_DATA_DIR", str(Path.home() / ".cortex-debugger")))
+    existing = next((p for p in (directory, *directory.parents) if p.exists()), Path.home())
+    free_gb = round(shutil.disk_usage(existing).free / 1024 ** 3, 1)
+    return {
+        "python": platform.python_version(),
+        "python_supported": sys.version_info >= (3, 11),
+        "os": platform.system(),
+        "architecture": platform.machine(),
+        "torch_installed": importlib.util.find_spec("torch") is not None,
+        "transformerlens_installed": importlib.util.find_spec("transformer_lens") is not None,
+        "free_disk_gb": free_gb,
+        "private_data_default": "local SQLite, no remote sync",
+        "model_download_required_first_use": True,
+        "isolation": "single worker subprocess",
+    }
+
 
 @app.get("/api/v1/models")
 def models(request: Request) -> dict:

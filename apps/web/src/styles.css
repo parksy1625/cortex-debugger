@@ -35,3 +35,16 @@ main{flex:1;min-width:0}header{border-bottom:1px solid #263547;height:70px;displ
 .delete-record:hover{background:#492d35;color:#ffe1dc}
 .export-actions{display:flex;flex-wrap:wrap;gap:9px}
 .export-actions .export{flex:1;min-width:180px}
+
+/* M10: low-noise, responsive first-run diagnostics. */
+.runtime-readiness{border:1px solid #27394d;border-radius:16px;background:#142032;padding:16px 20px;margin-bottom:17px;display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+.runtime-main{min-width:170px;flex:1}
+.runtime-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#dce8f8}
+.runtime-main small{display:block;color:#96a9bf;margin-top:5px;font-size:11px}
+.runtime-checks{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.runtime-checks span{background:#273347;border:1px solid #344861;border-radius:8px;padding:6px 9px;font-size:11px;color:#bed0e2}
+.runtime-checks span.ready{color:#72dfb6;border-color:#2b655e;background:#193739}
+.runtime-checks span.missing{color:#efbd85;border-color:#72553a;background:#3b3029}
+.runtime-readiness .secondary{white-space:nowrap}
+.runtime-note{flex-basis:100%;font-size:11px;color:#899fb7;margin:0}
+@media(max-width:700px){.runtime-readiness{padding:13px}.runtime-checks{width:100%}}

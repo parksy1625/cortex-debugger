@@ -14,6 +14,7 @@ type Result = Evidence & {
 type Experiment = {id:string;status:Status;created_at:string;configuration:Config;error:string|null;result:Result|null};
 type HistoryItem = Pick<Experiment,'id'|'status'|'created_at'|'configuration'>;
 type FormValues = Submission;
+type RuntimeDiagnostics = {python:string;python_supported:boolean;os:string;architecture:string;torch_installed:boolean;transformerlens_installed:boolean;free_disk_gb:number;model_download_required_first_use:boolean};
 const starter:FormValues = {clean:'The dog runs',corrupted:'The cat runs',correct_token:' dog',incorrect_token:' cat',layer:5,token_index:2,device:'cpu',revision:''};
 const done = (s:Status) => ['completed','failed','cancelled'].includes(s);
 const number = (n:number|null|undefined,places=4) => typeof n==='number'&&Number.isFinite(n) ? n.toFixed(places) : '—';
@@ -36,6 +37,7 @@ export default function App(){
  const [tab,setTab]=useState<'studio'|'history'>('studio');
  const [form,setForm]=useState<FormValues>(starter);
  const [connected,setConnected]=useState(false);
+ const [runtime,setRuntime]=useState<RuntimeDiagnostics|null>(null);
  const [current,setCurrent]=useState<Experiment|null>(null);
  const [history,setHistory]=useState<HistoryItem[]>([]);
  const [error,setError]=useState('');
@@ -47,7 +49,8 @@ export default function App(){
  const edit=<K extends keyof FormValues,>(name:K,value:FormValues[K])=>setForm(prev=>({...prev,[name]:value}));
  const loadHistory=useCallback(async()=>{try{setHistory((await api<{items:HistoryItem[]}>('/api/v1/experiments?limit=30')).items)}catch{/* health/errors shown elsewhere */}},[]);
  const loadJob=useCallback(async(id:string)=>{const result=await api<Experiment>('/api/v1/experiments/'+encodeURIComponent(id));setCurrent(result);if(done(result.status))void loadHistory()},[loadHistory]);
- useEffect(()=>{void api('/api/v1/health').then(()=>{setConnected(true);void loadHistory()}).catch(()=>setConnected(false))},[loadHistory]);
+ const refreshRuntime=useCallback(async()=>{try{setRuntime(await api<RuntimeDiagnostics>('/api/v1/setup'))}catch{setRuntime(null)}},[]);
+ useEffect(()=>{void api('/api/v1/health').then(()=>{setConnected(true);void loadHistory();void refreshRuntime()}).catch(()=>setConnected(false))},[loadHistory,refreshRuntime]);
  useEffect(()=>{if(!current||done(current.status))return;const timer=window.setInterval(()=>{void loadJob(current.id).catch(e=>setError(String(e)))},1100);return()=>window.clearInterval(timer)},[current?.id,current?.status,loadJob]);
  const run=async(e:FormEvent<HTMLFormElement>)=>{
   e.preventDefault();setError('');setPending(true);
@@ -108,11 +111,23 @@ export default function App(){
  <button className={'side-link '+(tab==='studio'?'selected':'')} onClick={()=>setTab('studio')}><FlaskConical size={17}/> Experiment <ChevronRight size={15}/></button>
  <button className={'side-link '+(tab==='history'?'selected':'')} onClick={()=>{setTab('history');void loadHistory()}}><History size={17}/> History <small>{history.length}</small></button>
  <hr/><div className="aside-label">MODEL</div><div className="model"><Cpu size={18}/><div>GPT-2 Small<small>12 layers · local weights</small></div></div>
- <div className="aside-foot"><span className={'indicator '+(connected?'ok':'')}/>{connected?'Local API connected':'API offline'}<small>M8 · release candidate</small></div>
+ <div className="aside-foot"><span className={'indicator '+(connected?'ok':'')}/>{connected?'Local API connected':'API offline'}<small>M10 · development preview</small></div>
  </aside><main><header><span>CORTEX / {tab==='studio'?'EXPERIMENT STUDIO':'HISTORY'}</span><div><span className="local-pill">LOCAL ONLY</span><span>v0.9.0-rc1</span></div></header>
- <div className="content"><div className="heading"><div><div className="eyebrow">MECHANISTIC INTERPRETABILITY / M8</div><h1>{tab==='studio'?'Experiment studio':'Experiment history'}</h1><p>Compare model runs, intervene on residual activations, and inspect measured effects.</p></div><span className="model-pill"><Activity size={13}/> GPT-2 ENGINE</span></div>
+ <div className="content"><div className="heading"><div><div className="eyebrow">MECHANISTIC INTERPRETABILITY / M10</div><h1>{tab==='studio'?'Experiment studio':'Experiment history'}</h1><p>Compare model runs, intervene on residual activations, and inspect measured effects.</p></div><span className="model-pill"><Activity size={13}/> GPT-2 ENGINE</span></div>
  {error&&<div className="error" role="alert"><AlertCircle size={16}/>{error}<button onClick={()=>setError('')} aria-label="Dismiss">×</button></div>}
  {!connected&&<div className="notice"><Info size={15}/>API offline. Run <code>uvicorn apps.api.main:app --host 127.0.0.1 --port 8000</code> then refresh.</div>}
+ {tab==='studio'&&connected&&<section className="runtime-readiness" aria-label="Local runtime readiness">
+ <div className="runtime-main"><span className="runtime-title"><Cpu size={16}/> Local runtime check</span>
+ <small>{runtime?runtime.os+' · '+runtime.architecture+' · Python '+runtime.python:'Checking Python and model dependencies…'}</small></div>
+ {runtime&&<div className="runtime-checks">
+  <span className={runtime.python_supported?'ready':'missing'}>Python {runtime.python_supported?'ready':'unsupported'}</span>
+  <span className={runtime.torch_installed?'ready':'missing'}>PyTorch {runtime.torch_installed?'installed':'missing'}</span>
+  <span className={runtime.transformerlens_installed?'ready':'missing'}>TransformerLens {runtime.transformerlens_installed?'installed':'missing'}</span>
+  <span>Free disk {runtime.free_disk_gb.toFixed(1)} GB</span>
+ </div>}
+ <button type="button" className="secondary" onClick={()=>void refreshRuntime()}><RefreshCw size={14}/> Check again</button>
+ <p className="runtime-note">GPT-2 weights download on first use. Model loading happens only when you run an experiment.</p>
+ </section>}
  {tab==='studio'?<><div className="studio">
  <form className="panel" onSubmit={run}>
  <div className="panel-heading"><span className="panel-icon"><Layers size={17}/></span><div><h2>Input configuration</h2><p>Clean / corrupted / patch</p></div></div>

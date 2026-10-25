@@ -1,3 +1,33 @@
+## M10 development on main — local browser protection and setup readiness
+
+**The existing published v0.9.0-rc1 ZIP/.app/.exe is unchanged.** These M10
+improvements are source changes under development and must not be mistaken
+for updated downloadable binaries.
+
+- Local API rejects non-loopback `Host` values and cross-site browser requests
+  to reduce DNS-rebinding and malicious webpage request risks.
+- Cross-site `Origin` (including `null`) is rejected. Same-origin browser
+  calls and existing Python HTTP clients continue to work.
+- Vite development uses an explicit opt-in `CORTEX_DEV_ORIGIN` for port 5173.
+  The production compiled UI uses a single origin and needs no exception.
+- The local Studio now exposes a **runtime readiness panel** reporting Python,
+  installed PyTorch/TransformerLens, OS/architecture and approximate free
+  disk space, without loading the AI model.
+- These measures are **not local API authentication**. An untrusted process
+  running under the same OS user can speak directly to the loopback service.
+  Authenticated IPC and stronger local boundaries remain open research.
+
+Run M10 source in local development:
+
+```bash
+# In the server terminal, enable only the trusted Vite development origin:
+CORTEX_DEV_ORIGIN=http://127.0.0.1:5173 python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000
+# In another terminal:
+cd apps/web && npm ci && npm run dev
+```
+
+See [M10 security and setup notes](docs/M10_SECURITY_SETUP.md).
+
 # Cortex Debugger
 
 **Local-first activation-patching debugger, experiment studio and model regression gate.**

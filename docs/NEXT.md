@@ -1,16 +1,13 @@
-# After M9
+# After M10 browser-origin protections and setup diagnostics
 
-1. Complete: Windows PowerShell published ZIP startup + actual GPT-2 CPU;
-   packaged `.exe` GUI launcher compiled and headless integrity-checked.
-2. Complete: unsigned macOS Finder `.app` launcher verified on Apple Silicon
-   with actual MPS activation-patching inference.
-3. Add human/manual GUI click tests on both platforms; automate real Windows
-   GUI workflows where CI desktop sessions are available.
-4. Provide properly signed Windows installer/MSI and notarized macOS .app or
-   signed .dmg, with publisher trust/rollback and user installation docs.
-5. Move toward a true self-contained Python/Torch runtime or an explicit
-   installer wizard with progress reporting, model download estimate and errors.
-6. Implement authenticated local API or owner-bound IPC, limit model IPC bytes,
-   set hard memory budgets and add opt-in retention/compaction policies.
-7. Capture polished application screenshots, demo video and developer
-   benchmark suite across diverse models before expanding beyond GPT-2.
+1. Validate same-origin compiled UI, explicit Vite origin opt-in and
+   hostile Host/Origin/Fetch-Site requests via GitHub Actions.
+2. Implement **actual owner-bound local authorization** using process-held
+   credential bootstrap or authenticated IPC. Host/Origin checks are not auth.
+3. Add download/install progress into Windows/Mac launcher UI and recovery
+   diagnostics (but never log raw prompts).
+4. Build v0.10 prerelease from current code; do NOT overwrite the already
+   tested v0.9.0-rc1 binaries or reuse their version tag.
+5. Add trusted publisher code signing, Apple notarization, Windows MSI,
+   verified artifact provenance and native GUI click tests.
+6. Add IPC response size guard, OS hard memory budgets and secure retention.
