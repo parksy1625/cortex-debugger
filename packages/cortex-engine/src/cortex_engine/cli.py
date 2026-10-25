@@ -52,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "info":
             output = {
-                "version": __version__, "stage": "M8",
+                "version": __version__, "stage": "M10",
                 "supported_models": ["openai-community/gpt2"],
                 "commands": ["info", "score", "smoke", "pair", "validate", "verify"],
             }

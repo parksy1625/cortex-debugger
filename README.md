@@ -1,8 +1,6 @@
-## M10 development on main — local browser protection and setup readiness
+## M10 v0.10.0-rc1 — local browser protection and setup readiness
 
-**The existing published v0.9.0-rc1 ZIP/.app/.exe is unchanged.** These M10
-improvements are source changes under development and must not be mistaken
-for updated downloadable binaries.
+**v0.10.0-rc1 is a separate release candidate.** The previously published v0.9.0-rc1 packages are unchanged. The M10 ZIP must pass actual model-backed packaged smoke tests before being published.
 
 - Local API rejects non-loopback `Host` values and cross-site browser requests
   to reduce DNS-rebinding and malicious webpage request risks.

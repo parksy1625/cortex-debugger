@@ -2,15 +2,14 @@ name: Local bundle and release
 
 on:
   push:
-    # The published v0.9 release is immutable. M10 main must not rebuild
-    # a different ZIP under the old v0.9 filename.
-    tags: ['v0.9.0-rc1']
+    branches: [main]
+    tags: ['v0.10.0-rc1']
     paths:
       - 'apps/**'
       - 'packages/**'
       - 'scripts/build_release.py'
       - 'launchers/**'
-      - 'docs/M8_RELEASE.md'
+      - 'docs/M10_RELEASE.md'
       - '.github/workflows/bundle-release.yml'
       - 'pyproject.toml'
       - 'requirements-linux-py311.lock'
@@ -55,7 +54,7 @@ jobs:
           sha256sum -c *.sha256
       - name: Extract exactly the uploaded ZIP for smoke testing
         run: |
-          python -m zipfile -e artifacts/Cortex-Debugger-v0.9.0-rc1.zip /tmp/cortex-m8-extracted
+          python -m zipfile -e artifacts/Cortex-Debugger-v0.10.0-rc1.zip /tmp/cortex-m8-extracted
           test -f /tmp/cortex-m8-extracted/apps/web/dist/index.html
           test -f /tmp/cortex-m8-extracted/start.sh
           python -m venv /tmp/cortex-m8-venv
@@ -85,10 +84,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Cortex-Debugger-v0.9.0-rc1
+          name: Cortex-Debugger-v0.10.0-rc1
           path: |
-            artifacts/Cortex-Debugger-v0.9.0-rc1.zip
-            artifacts/Cortex-Debugger-v0.9.0-rc1.zip.sha256
+            artifacts/Cortex-Debugger-v0.10.0-rc1.zip
+            artifacts/Cortex-Debugger-v0.10.0-rc1.zip.sha256
           if-no-files-found: warn
       - name: Upload packaging test trace on failure
         if: failure()
@@ -103,7 +102,7 @@ jobs:
 
   publish-tagged-release:
     needs: bundle-smoke
-    if: github.ref == 'refs/tags/v0.9.0-rc1'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/tags/v0.10.0-rc1'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -111,7 +110,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: Cortex-Debugger-v0.9.0-rc1
+          name: Cortex-Debugger-v0.10.0-rc1
           path: artifacts
       - name: Publish verified ZIP and checksum to GitHub Releases
         env:
@@ -119,12 +118,12 @@ jobs:
         run: |
           cd artifacts
           sha256sum -c *.sha256
-          if gh release view v0.9.0-rc1 >/dev/null 2>&1; then
+          if gh release view v0.10.0-rc1 >/dev/null 2>&1; then
             echo "Verified release candidate already exists"
           else
-            gh release create v0.9.0-rc1 ./*.zip ./*.sha256 \
+            gh release create v0.10.0-rc1 ./*.zip ./*.sha256 \
               --target "$GITHUB_SHA" \
-              --title "Cortex Debugger v0.9.0-rc1" \
+              --title "Cortex Debugger v0.10.0-rc1" \
               --notes "M8 local runtime release candidate. ZIP verified by extracting into a fresh Python environment and running real GPT-2 Chromium end-to-end. First launch requires Python 3.11+, an internet connection and model downloads. Localhost-only, not an offline installer or signed executable." \
               --prerelease
           fi
