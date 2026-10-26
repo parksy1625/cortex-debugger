@@ -6,6 +6,8 @@ It never downloads packages, starts a service, or reads user experiments.
 
 from __future__ import annotations
 
+import argparse
+import socket
 import sys
 from pathlib import Path
 
@@ -23,7 +25,7 @@ def validate(root: Path, *, python_version: tuple[int, int] | None = None) -> Pa
             or not wheels[0].name.startswith(f"cortex_debugger-{WHEEL_VERSION}-")):
         raise ValueError(f"Expected exactly one cortex_debugger-{WHEEL_VERSION} wheel")
     required = [
-        "start.sh", "start.ps1", "README-RELEASE.md",
+        "start.sh", "start.ps1", "Start-Cortex.command", "README-RELEASE.md",
         "requirements-linux-py311.lock", "apps/api/main.py",
         "apps/api/owner_ipc.py", "apps/api/owner_pipe_windows.py",
         "apps/web/dist/index.html",
@@ -38,10 +40,32 @@ def validate(root: Path, *, python_version: tuple[int, int] | None = None) -> Pa
     return wheels[0]
 
 
-def main() -> int:
+def ensure_local_port_free(port: int = 8000) -> None:
+    """Fail before dependency setup when another process owns the local UI port.
+
+    This is a usability check, not a reservation: uvicorn must still bind the
+    loopback address itself after dependencies have been prepared.
+    """
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind(("127.0.0.1", port))
+    except OSError as exc:
+        raise ValueError(
+            f"Local port {port} is already in use or unavailable. "
+            "Stop the other local service, then retry Cortex Debugger."
+        ) from exc
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check-port", action="store_true",
+                        help="also check whether the localhost UI port is available")
+    args = parser.parse_args(argv)
     root = Path(__file__).resolve().parent
     try:
         wheel = validate(root)
+        if args.check_port:
+            ensure_local_port_free()
     except ValueError as exc:
         print(f"Cortex M12 preflight failed: {exc}", file=sys.stderr)
         return 2

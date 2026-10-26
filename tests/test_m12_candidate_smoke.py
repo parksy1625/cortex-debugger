@@ -20,7 +20,8 @@ class CandidateSmokeValidationTests(unittest.TestCase):
     def _make_zip(self, extra=None):
         with ZipFile(self.archive, "w") as bundle:
             for name in [
-                "start.sh", "start.ps1", "runtime-preflight.py", "apps/api/main.py",
+                "start.sh", "start.ps1", "Start-Cortex.command",
+                "runtime-preflight.py", "apps/api/main.py",
                 "apps/api/owner_ipc.py", "apps/api/owner_pipe_windows.py",
                 "apps/web/dist/index.html",
                 "wheel/cortex_debugger-0.12.0rc1-py3-none-any.whl",

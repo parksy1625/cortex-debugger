@@ -44,6 +44,11 @@ if ($Check) { return }
 if (-not $env:CORTEX_PAIRING_CODE -and [Console]::IsOutputRedirected) {
     throw 'Cannot display a pairing code with redirected output. Run in an interactive terminal or provide CORTEX_PAIRING_CODE through your launcher.'
 }
+if ($env:CORTEX_PAIRING_CODE -and $env:CORTEX_PAIRING_CODE -notmatch '^[0-9]{9}$') {
+    throw 'CORTEX_PAIRING_CODE must contain exactly nine decimal digits'
+}
+& $pythonCommand @pythonArguments (Join-Path $root 'runtime-preflight.py') --check-port
+if ($LASTEXITCODE -ne 0) { throw 'Cortex M12 local port 8000 preflight failed' }
 if (-not (Test-Path $venvPython)) {
     & $pythonCommand @pythonArguments -m venv (Join-Path $root '.venv')
     if ($LASTEXITCODE -ne 0) { throw 'Python 3.11-3.13 required' }
@@ -69,8 +74,13 @@ if ($installedSha256 -ne $wheelSha256) {
 # The GUI may set CORTEX_PAIRING_CODE itself and display it privately.
 # Standalone PowerShell launch prints a new one-time code only to a terminal.
 if (-not $env:CORTEX_PAIRING_CODE) {
-    $code = [System.Security.Cryptography.RandomNumberGenerator]::GetInt32(0, 1000000000)
-    $env:CORTEX_PAIRING_CODE = $code.ToString('D9')
+    # Windows PowerShell 5.1 runs on .NET Framework, which does not expose
+    # RandomNumberGenerator.GetInt32. Use Python's CSPRNG on all Windows hosts.
+    $generatedCode = & $venvPython -c 'import secrets; print(str(secrets.randbelow(1000000000)).zfill(9))'
+    if ($LASTEXITCODE -ne 0 -or $generatedCode -notmatch '^[0-9]{9}$') {
+        throw 'Could not generate a secure Cortex pairing code'
+    }
+    $env:CORTEX_PAIRING_CODE = $generatedCode
     Write-Host "Cortex pairing code: $env:CORTEX_PAIRING_CODE"
 }
 # Local Windows owner control uses explicit current-SID DACL and

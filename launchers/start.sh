@@ -27,6 +27,13 @@ if [[ ! -t 1 && -z "${CORTEX_PAIRING_CODE:-}" ]]; then
   echo "Cannot display a pairing code with redirected output. Run in an interactive terminal or provide CORTEX_PAIRING_CODE through your launcher." >&2
   exit 2
 fi
+if [[ -n "${CORTEX_PAIRING_CODE:-}" && ! "$CORTEX_PAIRING_CODE" =~ ^[0-9]{9}$ ]]; then
+  echo "CORTEX_PAIRING_CODE must contain exactly nine decimal digits." >&2
+  exit 2
+fi
+# Report a conflicting local service before creating a venv or downloading
+# large ML dependencies. This does not reserve the port for uvicorn.
+"$PYTHON" "$ROOT/runtime-preflight.py" --check-port
 if [[ ! -x "$VENV/bin/python" ]]; then
   "$PYTHON" -m venv "$VENV"
 fi

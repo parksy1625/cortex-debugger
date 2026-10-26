@@ -58,7 +58,8 @@ def extract_candidate(archive: Path, destination: Path) -> Path:
                     or stat.S_ISLNK(entry.external_attr >> 16)):
                 raise ValueError("Candidate ZIP contains an unsafe path")
         required = {
-            "start.sh", "start.ps1", "runtime-preflight.py", "README-RELEASE.md",
+            "start.sh", "start.ps1", "Start-Cortex.command",
+            "runtime-preflight.py", "README-RELEASE.md",
             "apps/api/main.py", "apps/api/owner_ipc.py",
             "apps/api/owner_pipe_windows.py", "apps/web/dist/index.html",
         }
@@ -193,6 +194,13 @@ def main() -> None:
             if os.name == "nt" else ["bash", str(extracted / "start.sh"), "--check"]
         )
         subprocess.run(launcher_check, cwd=extracted, check=True, timeout=20)
+        if sys.platform == "darwin":
+            # Exercise the Finder entry point's delegation to the actual
+            # extracted launcher without making a GUI/Desktop claim.
+            subprocess.run(
+                ["bash", str(extracted / "Start-Cortex.command"), "--check"],
+                cwd=extracted, check=True, timeout=20,
+            )
         venv_directory = root / "venv"
         venv.EnvBuilder(with_pip=True).create(venv_directory)
         python = _python(venv_directory)

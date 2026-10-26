@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import stat
 from zipfile import ZipFile
 
 import pytest
@@ -18,6 +19,7 @@ def _fake_bundle_source(root, wheel_version="0.12.0rc1"):
         "apps/api/main.py": "app = None",
         "launchers/start.sh": "#!/bin/sh",
         "launchers/start.ps1": "# pwsh",
+        "launchers/Start-Cortex.command": "#!/bin/bash",
         "scripts/runtime_preflight.py": "# preflight",
         "docs/M12_RELEASE.md": "# v0.12.0-rc1",
         "LICENSE": "MIT",
@@ -27,6 +29,7 @@ def _fake_bundle_source(root, wheel_version="0.12.0rc1"):
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
+    (root / "launchers/Start-Cortex.command").chmod(0o755)
 
 
 def test_m12_candidate_has_matching_wheel_and_checksum(tmp_path):
@@ -40,6 +43,8 @@ def test_m12_candidate_has_matching_wheel_and_checksum(tmp_path):
     assert dest.with_suffix(".zip.sha256").read_text().startswith(result["sha256"])
     with ZipFile(dest) as archive:
         assert "README-RELEASE.md" in archive.namelist()
+        assert "Start-Cortex.command" in archive.namelist()
+        assert stat.S_IMODE(archive.getinfo("Start-Cortex.command").external_attr >> 16) & 0o111
         assert b"v0.12.0-rc1" in archive.read("README-RELEASE.md")
 
     original = dest.read_bytes()

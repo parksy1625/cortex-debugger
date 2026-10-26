@@ -63,7 +63,7 @@ jobs:
           cd artifacts
           sha256sum -c Cortex-Debugger-v0.12.0-rc1.zip.sha256
           python -m zipfile -t Cortex-Debugger-v0.12.0-rc1.zip
-          python -c "from zipfile import ZipFile; z=ZipFile('Cortex-Debugger-v0.12.0-rc1.zip'); names=set(z.namelist()); assert {'README-RELEASE.md','start.sh','start.ps1','runtime-preflight.py','apps/api/owner_pipe_windows.py','apps/api/owner_ipc.py','apps/web/dist/index.html'} <= names; assert b'v0.12.0-rc1' in z.read('README-RELEASE.md')"
+          python -c "from zipfile import ZipFile; z=ZipFile('Cortex-Debugger-v0.12.0-rc1.zip'); names=set(z.namelist()); assert {'README-RELEASE.md','start.sh','start.ps1','Start-Cortex.command','runtime-preflight.py','apps/api/owner_pipe_windows.py','apps/api/owner_ipc.py','apps/web/dist/index.html'} <= names; assert b'v0.12.0-rc1' in z.read('README-RELEASE.md')"
       - name: Save candidate for testing only (not a GitHub Release)
         uses: actions/upload-artifact@v4
         with:
