@@ -29,9 +29,12 @@ async def app_lifespan(target_app: FastAPI):
     """Opt-in OS peer-verified admin IPC; web API retains browser pairing."""
     owner = None
     if os.environ.get("CORTEX_OWNER_IPC") == "1":
-        if os.name != "posix":
-            raise RuntimeError("Owner IPC on Windows needs named pipes; not yet implemented")
-        from apps.api.owner_ipc import OwnerControl
+        if os.name == "nt":
+            from apps.api.owner_pipe_windows import WindowsOwnerControl as OwnerControl
+        elif os.name == "posix":
+            from apps.api.owner_ipc import OwnerControl
+        else:
+            raise RuntimeError("OS-verified owner IPC is not supported on this platform")
 
         directory = Path(
             os.environ.get("CORTEX_DATA_DIR", str(Path.home() / ".cortex-debugger"))

@@ -31,6 +31,9 @@ if (-not $env:CORTEX_PAIRING_CODE) {
     $env:CORTEX_PAIRING_CODE = $code.ToString('D9')
     Write-Host "Cortex pairing code: $env:CORTEX_PAIRING_CODE"
 }
+# Local Windows owner control uses explicit current-SID DACL and
+# request-time named-pipe impersonation. HTTP retains browser pairing.
+$env:CORTEX_OWNER_IPC = '1'
 Write-Host 'Local app: http://127.0.0.1:8000/'
 Write-Host 'Stop with Ctrl+C'
 & $venvPython -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000 --workers 1
