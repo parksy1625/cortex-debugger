@@ -1,3 +1,21 @@
+## M12 Phase 2: Windows SID-verified named pipe (development only)
+
+M12 now provides **user-account-verified local control IPC on Linux, macOS
+and Windows**. The Windows pipe uses an explicit current-user-only DACL,
+remote-client rejection, request-time `ImpersonateNamedPipeClient` and
+token SID verification. The only allowed owner controls are **model status**
+and **cancel a validated experiment ID**. The Windows
+[7-test native pipe suite](https://github.com/parksy1625/cortex-debugger/actions/runs/40296700666)
+passed on a hosted Windows x64 runner.
+
+This is **not protection from malicious processes running as the same user**
+and does **not yet make browser HTTP calls use the pipe**. Native GUI use,
+other-user account attempts and an M12 ZIP installation still need validation.
+
+See [Windows IPC design](docs/M12_WINDOWS_PIPE.md) and the
+[M12 verification log](docs/M12_VALIDATION.md).
+The existing public v0.11.0-rc1 assets have not changed.
+
 ## M12 development: OS-verified owner control IPC (Linux and macOS)
 
 **This is development on `main`, not a new downloadable release.**
