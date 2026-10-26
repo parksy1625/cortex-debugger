@@ -75,13 +75,31 @@ def test_excessive_message_and_invalid_command_are_rejected(pipe):
     from apps.api.owner_pipe_windows import request_control_name
 
     server, seen = pipe
-    assert request_control_name(server.name, {
-        "command": "cancel", "id": "x" * 8200
-    })["error"] == "bad_or_oversized_request"
+    with pytest.raises(ValueError, match="Oversize named-pipe request"):
+        request_control_name(server.name, {"command": "cancel", "id": "x" * 8200})
     assert request_control_name(server.name, {
         "command": "cancel", "id": "not-hex"
     })["error"] == "unknown_command"
     assert seen == []
+
+
+def test_oversized_request_is_rejected_before_opening_pipe(pipe, monkeypatch):
+    from apps.api import owner_pipe_windows
+
+    server, _ = pipe
+    original = owner_pipe_windows._win32
+
+    def fail_if_pipe_is_opened():
+        modules = list(original())
+        class NoOpen:
+            def CreateFile(self, *_args, **_kwargs):
+                pytest.fail("Oversized request must not open the pipe")
+        modules[3] = NoOpen()
+        return tuple(modules)
+
+    monkeypatch.setattr(owner_pipe_windows, "_win32", fail_if_pipe_is_opened)
+    with pytest.raises(ValueError, match="Oversize named-pipe request"):
+        owner_pipe_windows.request_control_name(server.name, {"command": "status", "x": "z" * 8200})
 
 
 def test_second_service_cannot_steal_running_named_pipe(pipe):

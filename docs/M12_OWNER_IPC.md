@@ -1,4 +1,4 @@
-# M12 phase 1 — owner-verified POSIX control IPC
+# M12 development — owner-verified desktop control IPC
 
 **State: development on main, NOT in the published v0.11.0-rc1 ZIP.**
 
@@ -32,10 +32,19 @@ non-socket file, wrong owner or permissive IPC directory is rejected.
 
 The authenticated browser routes are **not yet transported through this
 socket** and cannot be described as protected by OS peer credentials.
-Windows continues to use M11 browser bearer authentication; named pipes
-with verified peer SID and strict DACL are future work.
+On Windows x64, the PowerShell launcher enables a separate named pipe
+(`\\.\pipe\cortex-owner-<hash>`). Its name is derived from the current
+account SID and data directory. The pipe rejects remote clients, is created
+with a current-user-only DACL, and checks the client impersonation token's
+user SID after reading each request. Only one server instance may own the
+pipe name. This transport requires pywin32 and is exercised by the Windows
+owner-IPC test workflow; it is still development code, not a new installer.
 
-## Local owner CLI (Linux/macOS development environment)
+The browser continues to use M11 pairing and bearer authentication on
+Windows as well as POSIX. Owner IPC does not isolate processes running
+under the same OS user, and it is not a browser security boundary.
+
+## Local owner CLI (development environment)
 
 Start the API in one terminal with `CORTEX_OWNER_IPC=1`. When the app
 runs from the local shell bootstrap, this flag is set automatically.
@@ -44,6 +53,9 @@ runs from the local shell bootstrap, this flag is set automatically.
 python -m apps.api.owner_ipc status
 python -m apps.api.owner_ipc cancel 0123456789abcdef0123456789abcdef
 ```
+
+On Windows, use `python -m apps.api.owner_pipe_windows status` or
+`python -m apps.api.owner_pipe_windows cancel <experiment-id>`.
 
 If using `CORTEX_DATA_DIR`, pass the same directory through `--data-dir`
 or export the same environment in the control terminal. The socket path is
@@ -56,6 +68,9 @@ derived locally; no secret is printed or written into a public endpoint.
 - `0700` directory and `0600` socket permissions, wrong-UID rejection,
   oversized/malformed commands, active-socket refusal, symlink protection,
   and lifespan cleanup.
+- Separate Windows-native tests exercise the named-pipe ACL, client SID,
+  different-process access, malformed commands, active-instance refusal and
+  shutdown. Client requests are size-checked before opening the pipe.
 
 These tests do **not** establish a security boundary against a malicious
 process running under the **same** account. That process naturally has

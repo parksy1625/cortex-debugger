@@ -7,8 +7,9 @@ M12 binary or an OS-authenticated transport for every browser/API request.
 
 1. Verify POSIX peer UID tests in both Ubuntu and Apple Silicon GitHub Actions.
 2. Verify FastAPI + real GPT-2 Chromium smoke while the IPC socket is enabled.
-3. Design Windows x64 named-pipe control with current-user-only security
-   descriptor and verified caller identity; add independent Windows CI.
+3. Windows x64 named-pipe control with a current-user-only DACL and verified
+   caller SID is implemented on main, with a separate Windows CI workflow.
+   Confirm the latest workflow run before claiming release qualification.
 4. Integrate authenticated local browser proxy safely with OS IPC, with
    a documented threat model for same-user attackers.
 5. Improve first-install progress and error reporting, native GUI click QA,
