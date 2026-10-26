@@ -30,6 +30,7 @@ jobs:
     env:
       CORTEX_DATA_DIR: /tmp/cortex-m5-e2e
       CORTEX_DEV_ORIGIN: http://127.0.0.1:5173
+      CORTEX_OWNER_IPC: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -59,6 +60,9 @@ jobs:
           python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000 > /tmp/cortex-api.log 2>&1 &
           echo $! > /tmp/cortex-api.pid
           curl --retry 30 --retry-delay 2 --retry-connrefused --fail http://127.0.0.1:8000/api/v1/health
+      - name: Validate owner credential IPC on actual running model service
+        run: |
+          python -m apps.api.owner_ipc status --data-dir /tmp/cortex-m5-e2e
       - name: Drive actual GPT-2 through React and browser
         working-directory: apps/web
         env:
