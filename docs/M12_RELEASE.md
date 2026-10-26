@@ -42,8 +42,12 @@ PyTorch and model dependencies, starts the *extracted* server with pairing,
 and runs the existing Chromium Playwright end-to-end experiment using actual
 pinned GPT-2 weights. The browser test also verifies M12 API stage/version,
 model revision, recovery and regression JSON export. This job is a required
-piece of release evidence **once its Actions result is confirmed**; adding
-the job does not itself mean it has passed.
+piece of release evidence. The candidate workflow
+[#40333501723](https://github.com/parksy1625/cortex-debugger/actions/runs/40333501723)
+**passed** on 2026-10-26, including the Ubuntu/macOS/Windows ZIP matrix and
+the real GPT-2 Chromium job. The tested ZIP was a source-runtime candidate,
+not a native installer. Later Windows cross-account authorization changes
+affect only the regression test/workflow, not the candidate runtime ZIP.
 
 To repeat that quick check locally after downloading the ZIP and its matching
 checksum sidecar into `artifacts/`:

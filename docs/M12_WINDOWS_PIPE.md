@@ -57,14 +57,23 @@ channel.
 
 - [Windows named-pipe CI #40296700666](https://github.com/parksy1625/cortex-debugger/actions/runs/40296700666)
   — **PASS: 7 tests** on `windows-2022`.
+- [Current PR Windows owner IPC #40335189694](https://github.com/parksy1625/cortex-debugger/actions/runs/40335189694)
+  — **PASS:** 8 standard tests, plus **1 real cross-user denial test**.
 - The test suite checks real Windows pipe SID acquisition and client
   impersonation, explicit DACL ACE contents, mocked cross-SID refusal,
   invalid and oversized command handling, second-server takeover refusal,
   separate client process, and FastAPI lifespan start/stop.
+- The new CI test provisions a disposable **different local Windows account**,
+  obtains its actual logon token with `LogonUser`, impersonates that SID in
+  the client thread, and confirms named-pipe `CreateFile` fails with Windows
+  `ACCESS_DENIED` (error 5) before the server dispatches a command. It then
+  reverts impersonation, confirms the owner can still connect, and deletes
+  the temporary account in an unconditional PowerShell `finally` block.
 - Linux/macOS POSIX IPC tests and live GPT-2 browser workflows run
   independently to detect regressions.
 
-**Not yet tested:** another *real logged-in Windows user* attempting access
-(runner has one test login), the GUI's click-driven pipe usage, Windows
-packaged ZIP after M12 changes, signed MSI installers, or moving the entire
-browser API to the OS-authenticated control channel.
+**Still not tested:** a second interactive Windows desktop session/process
+(the CI check impersonates a real alternate account on one runner), the GUI's
+click-driven pipe usage, signed MSI installers, or moving the entire browser
+API to the OS-authenticated control channel. The M12 extracted source ZIP
+has separately passed Windows CI; it is not a signed or offline installer.
