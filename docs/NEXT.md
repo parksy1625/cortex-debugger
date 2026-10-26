@@ -1,17 +1,22 @@
-# M12 roadmap and verified scope
+# M12 after Phase 2
 
-Phase 1 on main: Linux/macOS owner-verified Unix control IPC with strict
-socket/parent modes, kernel peer credential verification, bounded JSON-line
-status/cancel commands and lifespan cleanup. This is *not yet* a public
-M12 binary or an OS-authenticated transport for every browser/API request.
+Completed on main:
+- Linux and macOS Unix-domain socket with owner UID verification.
+- Windows x64 named-pipe control with explicit user SID DACL,
+  remote-client rejection, request-time impersonated token SID checks.
+- Both have only `status` and `cancel` commands, 8192-byte input ceiling.
+- M11 browser bearer pairing and loopback-only HTTP are still separate.
+- Native Windows pipe suite: 7 passed; Linux quality: 119 passed, 8 skipped
+  (including 7 Windows-only tests), Chromium real GPT-2 integration passed.
 
-1. Verify POSIX peer UID tests in both Ubuntu and Apple Silicon GitHub Actions.
-2. Verify FastAPI + real GPT-2 Chromium smoke while the IPC socket is enabled.
-3. Design Windows x64 named-pipe control with current-user-only security
-   descriptor and verified caller identity; add independent Windows CI.
-4. Integrate authenticated local browser proxy safely with OS IPC, with
-   a documented threat model for same-user attackers.
-5. Improve first-install progress and error reporting, native GUI click QA,
-   trust/signing/notarization and rollback; do not commit any signing keys.
-6. After Linux, macOS and Windows packaged smoke pass, version and release
-   v0.12.0 separately, never overwrite the existing v0.11.0-rc1 assets.
+Remaining milestones:
+1. Consolidate IPC dispatch and probe real cross-user Windows denial in a
+   controlled multi-account test environment; add denial/reconnect tests.
+2. Decide whether to restrict sensitive model/job operations to an
+   authenticated OS IPC proxy, without breaking the browser session.
+3. Improve desktop first-run setup progress and GUI click test automation.
+4. Create v0.12.0 release candidate and test actual extracted ZIP and
+   Mac/Windows native GUI launchers with real GPT-2.
+5. Add vetted native dependency locks, publisher signatures/notarization
+   and rollback only when owner-controlled credentials are available.
+6. Strengthen resource caps and default report privacy policy.

@@ -46,3 +46,27 @@ authenticated local IPC, perform code signing/notarization under the owner's
 certificate, complete GUI UX and native interactions, and verify packages
 and model inference on all three platforms under a new M12 tag. The old
 v0.11.0-rc1 assets were not modified.
+
+## Phase 2 — Windows x64 named pipe (2026-10-26)
+
+- [M12 Windows named-pipe CI #40296700666](https://github.com/parksy1625/cortex-debugger/actions/runs/40296700666):
+  **7 Windows-native tests passed** on windows-2022, including SID checks,
+  DACL, request bounds, separate process, second server rejection and
+  FastAPI lifecycle.
+- [Linux Python/Ruff/React #40296700609](https://github.com/parksy1625/cortex-debugger/actions/runs/40296700609):
+  **119 passed, 8 skipped** (7 Windows-only tests and one optional
+  real-model test), Ruff and web build successful.
+- [Actual Linux GPT-2 API/Chromium regression #40296700598](https://github.com/parksy1625/cortex-debugger/actions/runs/40296700598):
+  **PASS** with the new Windows code present.
+- [Windows implementation and threat model](M12_WINDOWS_PIPE.md).
+
+Windows client verification uses the kernel impersonation token's SID,
+not a client-supplied claimed identity. The pipe rejects remote clients
+and has an explicit current-user-only DACL. The tests inject an unrelated
+SID into the server validation path, but **do not log on as a second
+independent Windows user**; independent cross-account denial still requires
+manual or controlled multi-login QA.
+
+There is still **no new packaged M12 installer**, and browser model
+operations continue to use the paired localhost HTTP channel. Do not
+describe this separate named pipe as comprehensive application sandboxing.
