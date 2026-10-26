@@ -223,14 +223,26 @@ class WindowsOwnerControl:
 
 
 def request_control_name(name: str, payload: dict[str, str]) -> dict:
-    _, _, win32con, win32file, _, _ = _win32()
-    client = win32file.CreateFile(
-        name,
-        win32con.GENERIC_READ | win32con.GENERIC_WRITE,
-        0, None, win32con.OPEN_EXISTING,
-        win32con.SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION,
-        None,
-    )
+    pywintypes, _, win32con, win32file, win32pipe, _ = _win32()
+    try:
+        client = win32file.CreateFile(
+            name,
+            win32con.GENERIC_READ | win32con.GENERIC_WRITE,
+            0, None, win32con.OPEN_EXISTING,
+            win32con.SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION,
+            None,
+        )
+    except pywintypes.error as exc:
+        if exc.winerror != 231:  # ERROR_PIPE_BUSY between two sequential calls
+            raise
+        win32pipe.WaitNamedPipe(name, 4000)
+        client = win32file.CreateFile(
+            name,
+            win32con.GENERIC_READ | win32con.GENERIC_WRITE,
+            0, None, win32con.OPEN_EXISTING,
+            win32con.SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION,
+            None,
+        )
     try:
         _, value = win32file.WriteFile(client, (json.dumps(payload) + "\n").encode())
         _ = value
