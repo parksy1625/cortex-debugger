@@ -20,6 +20,7 @@ from typing import Any
 
 MAX_CONTROL_BYTES = 8192
 PIPE_REJECT_REMOTE_CLIENTS = 0x00000008
+FILE_FLAG_FIRST_PIPE_INSTANCE = 0x00080000  # Win32 CreateNamedPipeW open mode
 
 
 def _win32():
@@ -135,7 +136,7 @@ class WindowsOwnerControl:
         _, _, win32con, _, win32pipe, _ = _win32()
         self._handle = win32pipe.CreateNamedPipe(
             self.name,
-            win32pipe.PIPE_ACCESS_DUPLEX | win32con.FILE_FLAG_FIRST_PIPE_INSTANCE,
+            win32pipe.PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE,
             (win32pipe.PIPE_TYPE_MESSAGE | win32pipe.PIPE_READMODE_MESSAGE
              | win32pipe.PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS),
             1, MAX_CONTROL_BYTES, MAX_CONTROL_BYTES, 0, _security_attributes(),
