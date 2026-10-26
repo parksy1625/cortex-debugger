@@ -56,6 +56,7 @@ def build(root: Path, output: Path, version: str = VERSION) -> dict:
         for source, name in [
             (root / "launchers" / "start.sh", "start.sh"),
             (root / "launchers" / "start.ps1", "start.ps1"),
+            (root / "scripts" / "runtime_preflight.py", "runtime-preflight.py"),
             (release_notes, "README-RELEASE.md"),
             (root / "LICENSE", "LICENSE"),
             (root / "requirements-linux-py311.lock", "requirements-linux-py311.lock"),

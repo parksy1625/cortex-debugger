@@ -22,6 +22,11 @@ The release builder verifies that the requested ZIP version matches the wheel
 version and rejects an existing destination rather than overwriting it.
 The launchers track the exact bundled wheel SHA-256 and reinstall dependencies
 when it changes; they only write the marker after a successful installation.
+Both launchers now run the same dependency-free package preflight before
+installing anything. `./start.sh --check` and `start.ps1 -Check` validate the
+Python version, single compatible wheel, API and compiled UI files without
+downloading packages, changing the runtime, or starting a server. The three-OS
+ZIP CI smoke checks that native preflight too.
 
 The unpublished M12 Actions workflow also downloads the *same ZIP artifact*
 on Ubuntu, macOS and Windows, checks its SHA-256 again, extracts it into a

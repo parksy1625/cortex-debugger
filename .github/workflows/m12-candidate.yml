@@ -9,7 +9,9 @@ on:
       - 'launchers/**'
       - 'scripts/build_release.py'
       - 'scripts/smoke_m12_candidate.py'
+      - 'scripts/runtime_preflight.py'
       - 'tests/test_m12_candidate_smoke.py'
+      - 'tests/test_runtime_preflight.py'
       - 'docs/M12_RELEASE.md'
       - 'pyproject.toml'
       - 'requirements-linux-py311.lock'
@@ -21,7 +23,9 @@ on:
       - 'launchers/**'
       - 'scripts/build_release.py'
       - 'scripts/smoke_m12_candidate.py'
+      - 'scripts/runtime_preflight.py'
       - 'tests/test_m12_candidate_smoke.py'
+      - 'tests/test_runtime_preflight.py'
       - 'docs/M12_RELEASE.md'
       - 'pyproject.toml'
       - 'requirements-linux-py311.lock'
@@ -59,7 +63,7 @@ jobs:
           cd artifacts
           sha256sum -c Cortex-Debugger-v0.12.0-rc1.zip.sha256
           python -m zipfile -t Cortex-Debugger-v0.12.0-rc1.zip
-          python -c "from zipfile import ZipFile; z=ZipFile('Cortex-Debugger-v0.12.0-rc1.zip'); names=set(z.namelist()); assert {'README-RELEASE.md','start.sh','start.ps1','apps/api/owner_pipe_windows.py','apps/api/owner_ipc.py','apps/web/dist/index.html'} <= names; assert b'v0.12.0-rc1' in z.read('README-RELEASE.md')"
+          python -c "from zipfile import ZipFile; z=ZipFile('Cortex-Debugger-v0.12.0-rc1.zip'); names=set(z.namelist()); assert {'README-RELEASE.md','start.sh','start.ps1','runtime-preflight.py','apps/api/owner_pipe_windows.py','apps/api/owner_ipc.py','apps/web/dist/index.html'} <= names; assert b'v0.12.0-rc1' in z.read('README-RELEASE.md')"
       - name: Save candidate for testing only (not a GitHub Release)
         uses: actions/upload-artifact@v4
         with:
@@ -87,13 +91,15 @@ jobs:
         with:
           name: cortex-m12-source-candidate
           path: artifacts
-      - name: Verify candidate ZIP in isolated install, HTTP pairing and owner IPC
+      - name: Verify native launcher preflight, isolated install, HTTP pairing and owner IPC
         run: >-
           python scripts/smoke_m12_candidate.py
           --archive artifacts/Cortex-Debugger-v0.12.0-rc1.zip
           --checksum artifacts/Cortex-Debugger-v0.12.0-rc1.zip.sha256
       - name: Unit-check the candidate artifact verifier
-        run: python -m unittest discover -s tests -p test_m12_candidate_smoke.py
+        run: |
+          python -m unittest discover -s tests -p test_m12_candidate_smoke.py
+          python -m unittest discover -s tests -p test_runtime_preflight.py
 
   real-gpt2-browser:
     name: Extracted ZIP + real GPT-2 + Chromium (Linux CPU)

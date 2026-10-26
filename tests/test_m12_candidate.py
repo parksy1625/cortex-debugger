@@ -18,6 +18,7 @@ def _fake_bundle_source(root, wheel_version="0.12.0rc1"):
         "apps/api/main.py": "app = None",
         "launchers/start.sh": "#!/bin/sh",
         "launchers/start.ps1": "# pwsh",
+        "scripts/runtime_preflight.py": "# preflight",
         "docs/M12_RELEASE.md": "# v0.12.0-rc1",
         "LICENSE": "MIT",
         "requirements-linux-py311.lock": "# lock",

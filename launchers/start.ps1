@@ -1,15 +1,25 @@
-# Cortex Debugger M8 on Windows (PowerShell).
+param([switch]$Check)
+# Cortex Debugger M12 on Windows (PowerShell).
 # Install Python 3.11+ first. The app is localhost-only.
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 $root = $PSScriptRoot
 $venvPython = Join-Path $root '.venv\Scripts\python.exe'
+if (Test-Path $venvPython) {
+    $pythonCommand = $venvPython
+    $pythonArguments = @()
+} elseif (Get-Command py -ErrorAction SilentlyContinue) {
+    $pythonCommand = 'py'
+    $pythonArguments = @('-3.11')
+} else {
+    $pythonCommand = 'python'
+    $pythonArguments = @()
+}
+& $pythonCommand @pythonArguments (Join-Path $root 'runtime-preflight.py')
+if ($LASTEXITCODE -ne 0) { throw 'Cortex M12 preflight failed' }
+if ($Check) { return }
 if (-not (Test-Path $venvPython)) {
-    if (Get-Command py -ErrorAction SilentlyContinue) {
-        & py -3.11 -m venv (Join-Path $root '.venv')
-    } else {
-        & python -m venv (Join-Path $root '.venv')
-    }
+    & $pythonCommand @pythonArguments -m venv (Join-Path $root '.venv')
     if ($LASTEXITCODE -ne 0) { throw 'Python 3.11+ required' }
 }
 $wheel = Get-ChildItem (Join-Path $root 'wheel') -Filter 'cortex_debugger-*.whl' | Select-Object -First 1

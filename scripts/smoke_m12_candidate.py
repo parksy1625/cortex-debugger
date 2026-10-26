@@ -58,7 +58,7 @@ def extract_candidate(archive: Path, destination: Path) -> Path:
                     or stat.S_ISLNK(entry.external_attr >> 16)):
                 raise ValueError("Candidate ZIP contains an unsafe path")
         required = {
-            "start.sh", "start.ps1", "README-RELEASE.md",
+            "start.sh", "start.ps1", "runtime-preflight.py", "README-RELEASE.md",
             "apps/api/main.py", "apps/api/owner_ipc.py",
             "apps/api/owner_pipe_windows.py", "apps/web/dist/index.html",
         }
@@ -188,6 +188,11 @@ def main() -> None:
         extracted = root / "runtime"
         extracted.mkdir()
         wheel = extract_candidate(args.archive, extracted)
+        launcher_check = (
+            ["powershell", "-NoProfile", "-File", str(extracted / "start.ps1"), "-Check"]
+            if os.name == "nt" else ["bash", str(extracted / "start.sh"), "--check"]
+        )
+        subprocess.run(launcher_check, cwd=extracted, check=True, timeout=20)
         venv_directory = root / "venv"
         venv.EnvBuilder(with_pip=True).create(venv_directory)
         python = _python(venv_directory)

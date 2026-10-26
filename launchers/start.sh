@@ -6,13 +6,24 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 VENV="$ROOT/.venv"
-if [[ ! -x "$VENV/bin/python" ]]; then
+if [[ $# -gt 1 || ( $# -eq 1 && "$1" != "--check" ) ]]; then
+  echo "Usage: ./start.sh [--check]" >&2
+  exit 2
+fi
+if [[ -x "$VENV/bin/python" ]]; then
+  PYTHON="$VENV/bin/python"
+else
   if command -v python3.11 >/dev/null 2>&1; then
     PYTHON=python3.11
   else
     PYTHON=python3
   fi
-  "$PYTHON" -c 'import sys; assert sys.version_info >= (3,11), "Python 3.11+ required"'
+fi
+"$PYTHON" "$ROOT/runtime-preflight.py"
+if [[ "${1:-}" == "--check" ]]; then
+  exit 0
+fi
+if [[ ! -x "$VENV/bin/python" ]]; then
   "$PYTHON" -m venv "$VENV"
 fi
 
