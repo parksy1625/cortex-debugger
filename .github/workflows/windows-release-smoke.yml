@@ -131,6 +131,9 @@ jobs:
 
   publish-windows:
     needs: windows-x64
+    # Historical M11 artifacts are immutable. M12 development/dispatch runs
+    # only validate packages; they must never overwrite a published ZIP.
+    if: github.ref == 'refs/tags/v0.11.0-rc1'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -145,4 +148,4 @@ jobs:
         run: |
           cd assets
           sha256sum -c *.sha256
-          gh release upload v0.11.0-rc1 *.zip *.sha256 --repo parksy1625/cortex-debugger --clobber
+          gh release upload v0.11.0-rc1 *.zip *.sha256 --repo parksy1625/cortex-debugger

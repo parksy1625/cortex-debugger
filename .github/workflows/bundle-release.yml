@@ -103,7 +103,8 @@ jobs:
 
   publish-tagged-release:
     needs: bundle-smoke
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/tags/v0.11.0-rc1'
+    # Manual development runs on main must not publish an historical release.
+    if: github.ref == 'refs/tags/v0.11.0-rc1'
     runs-on: ubuntu-latest
     permissions:
       contents: write
