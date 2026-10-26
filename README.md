@@ -1,3 +1,25 @@
+## M12 development: OS-verified owner control IPC (Linux and macOS)
+
+**This is development on `main`, not a new downloadable release.**
+The published v0.11.0-rc1 packages are unchanged.
+
+The POSIX shell launch now starts an additional owner-only Unix socket
+for model status and job cancellation. On Linux the kernel-reported UID
+comes from `SO_PEERCRED`; on macOS from libc `getpeereid`.
+A mode-0700 directory, mode-0600 socket, bounded JSON-line requests and
+live-peer UID checks are enforced. Python CLI:
+
+```bash
+python -m apps.api.owner_ipc status
+python -m apps.api.owner_ipc cancel 0123456789abcdef0123456789abcdef
+```
+
+The browser still uses M11 one-time pairing and bearer authorization over
+loopback HTTP. **This does not move browser HTTP requests onto OS-authenticated
+IPC**, and **same-account malware can use the socket** because it shares the
+same UID. Windows named-pipe support and independent M12 release validation
+are still pending. See [M12 architecture](docs/M12_OWNER_IPC.md).
+
 ## M11 v0.11.0-rc1 — one-time local browser pairing
 
 **M11 is published and verified separately from v0.10.0-rc1.**

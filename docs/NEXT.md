@@ -1,19 +1,17 @@
-# After M11: authenticated local model workbench
+# M12 roadmap and verified scope
 
-Completed: v0.11.0-rc1 published with real-model tests through a
-one-time pairing code and per-process bearer token on Linux, Apple MPS,
-and Windows CPU. Browser Host/Origin/Fetch-Site guards remain enabled.
+Phase 1 on main: Linux/macOS owner-verified Unix control IPC with strict
+socket/parent modes, kernel peer credential verification, bounded JSON-line
+status/cancel commands and lifespan cleanup. This is *not yet* a public
+M12 binary or an OS-authenticated transport for every browser/API request.
 
-1. OS-verified **owner-bound local IPC**: Unix socket peer credentials
-   on macOS/Linux, Windows named-pipe peer identity and strict ACLs.
-   Browser pairing is application-level auth, not an OS trust boundary.
-2. GUI onboarding: more accurate model-download progress, capacity
-   estimates, first-use cancellation and installation troubleshooting.
-3. Native Windows GUI click tests / macOS Finder LaunchServices GUI tests;
-   current CI uses headless launcher executable smoke.
-4. Code signing, macOS notarization, verified release attestations,
-   update channels and rollback; requires owner-managed credentials.
-5. Avoid spawning user-editable interpreters or loading untrusted model
-   checkpoint code without sandboxing; hard memory budgeting.
-6. Better model backends and scientific evaluation beyond the pinned
-   GPT-2 activation intervention once regression suites are ready.
+1. Verify POSIX peer UID tests in both Ubuntu and Apple Silicon GitHub Actions.
+2. Verify FastAPI + real GPT-2 Chromium smoke while the IPC socket is enabled.
+3. Design Windows x64 named-pipe control with current-user-only security
+   descriptor and verified caller identity; add independent Windows CI.
+4. Integrate authenticated local browser proxy safely with OS IPC, with
+   a documented threat model for same-user attackers.
+5. Improve first-install progress and error reporting, native GUI click QA,
+   trust/signing/notarization and rollback; do not commit any signing keys.
+6. After Linux, macOS and Windows packaged smoke pass, version and release
+   v0.12.0 separately, never overwrite the existing v0.11.0-rc1 assets.
