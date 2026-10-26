@@ -23,6 +23,10 @@ fi
 if [[ "${1:-}" == "--check" ]]; then
   exit 0
 fi
+if [[ ! -t 1 && -z "${CORTEX_PAIRING_CODE:-}" ]]; then
+  echo "Cannot display a pairing code with redirected output. Run in an interactive terminal or provide CORTEX_PAIRING_CODE through your launcher." >&2
+  exit 2
+fi
 if [[ ! -x "$VENV/bin/python" ]]; then
   "$PYTHON" -m venv "$VENV"
 fi

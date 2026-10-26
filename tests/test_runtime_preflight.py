@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -63,6 +64,45 @@ class RuntimePreflightTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("preflight OK", result.stdout)
+        self.assertFalse((self.root / ".venv").exists())
+
+    @unittest.skipUnless(shutil.which("bash"), "Bash not installed")
+    def test_posix_noninteractive_launch_does_not_hide_pairing_code(self):
+        if os.name == "nt":
+            self.skipTest("POSIX launcher not supported on Windows")
+        env = os.environ.copy()
+        env.pop("CORTEX_PAIRING_CODE", None)
+        result = subprocess.run(
+            ["bash", str(self.root / "start.sh")], cwd=self.root,
+            capture_output=True, text=True, env=env, timeout=15,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Cannot display a pairing code", result.stderr)
+        self.assertFalse((self.root / ".venv").exists())
+
+    @unittest.skipUnless(os.name == "nt", "Windows PowerShell only")
+    def test_windows_check_mode_skips_pairing_guard_and_install(self):
+        env = os.environ.copy()
+        env.pop("CORTEX_PAIRING_CODE", None)
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-File", str(self.root / "start.ps1"), "-Check"],
+            cwd=self.root, capture_output=True, text=True, env=env, timeout=20,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("preflight OK", result.stdout)
+        self.assertFalse((self.root / ".venv").exists())
+
+    @unittest.skipUnless(os.name == "nt", "Windows PowerShell only")
+    def test_windows_redirected_launch_never_prints_secret_or_installs(self):
+        env = os.environ.copy()
+        env.pop("CORTEX_PAIRING_CODE", None)
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-File", str(self.root / "start.ps1")],
+            cwd=self.root, capture_output=True, text=True, env=env, timeout=20,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Cannot display a pairing code", result.stdout + result.stderr)
+        self.assertNotIn("Cortex pairing code:", result.stdout + result.stderr)
         self.assertFalse((self.root / ".venv").exists())
 
 

@@ -10,7 +10,9 @@ if (Test-Path $venvPython) {
     $pythonArguments = @()
 } elseif (Get-Command py -ErrorAction SilentlyContinue) {
     $pythonCommand = 'py'
-    $pythonArguments = @('-3.11')
+    # Resolve an installed Python 3 runtime, not only precisely Python 3.11.
+    # The shared preflight enforces the minimum supported version (3.11).
+    $pythonArguments = @('-3')
 } else {
     $pythonCommand = 'python'
     $pythonArguments = @()
@@ -18,6 +20,9 @@ if (Test-Path $venvPython) {
 & $pythonCommand @pythonArguments (Join-Path $root 'runtime-preflight.py')
 if ($LASTEXITCODE -ne 0) { throw 'Cortex M12 preflight failed' }
 if ($Check) { return }
+if (-not $env:CORTEX_PAIRING_CODE -and [Console]::IsOutputRedirected) {
+    throw 'Cannot display a pairing code with redirected output. Run in an interactive terminal or provide CORTEX_PAIRING_CODE through your launcher.'
+}
 if (-not (Test-Path $venvPython)) {
     & $pythonCommand @pythonArguments -m venv (Join-Path $root '.venv')
     if ($LASTEXITCODE -ne 0) { throw 'Python 3.11+ required' }
@@ -41,7 +46,7 @@ if ($installedSha256 -ne $wheelSha256) {
     Move-Item -LiteralPath $temporaryMarker -Destination $marker -Force
 }
 # The GUI may set CORTEX_PAIRING_CODE itself and display it privately.
-# Standalone PowerShell launch prints a new one-time code interactively.
+# Standalone PowerShell launch prints a new one-time code only to a terminal.
 if (-not $env:CORTEX_PAIRING_CODE) {
     $code = [System.Security.Cryptography.RandomNumberGenerator]::GetInt32(0, 1000000000)
     $env:CORTEX_PAIRING_CODE = $code.ToString('D9')

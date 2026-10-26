@@ -28,6 +28,14 @@ Python version, single compatible wheel, API and compiled UI files without
 downloading packages, changing the runtime, or starting a server. The three-OS
 ZIP CI smoke checks that native preflight too.
 
+Interactive pairing is deliberately not printed into redirected output logs.
+If you launch either native script noninteractively, a desktop wrapper must
+provide `CORTEX_PAIRING_CODE` through the child process environment; otherwise
+the launcher stops **before** installing dependencies. The `--check` / `-Check`
+preflight remains safe in redirected CI logs and never requires a pairing code.
+The Windows launcher can use an installed Python 3.12+ via `py -3` when 3.11
+is not present; runtime preflight still rejects versions older than 3.11.
+
 The unpublished M12 Actions workflow also downloads the *same ZIP artifact*
 on Ubuntu, macOS and Windows, checks its SHA-256 again, extracts it into a
 temporary directory, installs the bundled wheel with API dependencies in an
