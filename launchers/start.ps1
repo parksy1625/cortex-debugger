@@ -1,34 +1,86 @@
-# Cortex Debugger M8 on Windows (PowerShell).
-# Install Python 3.11+ first. The app is localhost-only.
+param([switch]$Check)
+# Cortex Debugger M12 on Windows (PowerShell).
+# Install Python 3.11-3.13 first (pinned PyTorch 2.7). The app is localhost-only.
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 $root = $PSScriptRoot
 $venvPython = Join-Path $root '.venv\Scripts\python.exe'
-if (-not (Test-Path $venvPython)) {
-    if (Get-Command py -ErrorAction SilentlyContinue) {
-        & py -3.11 -m venv (Join-Path $root '.venv')
-    } else {
-        & python -m venv (Join-Path $root '.venv')
+if (Test-Path $venvPython) {
+    $pythonCommand = $venvPython
+    $pythonArguments = @()
+} else {
+    # PyTorch 2.7 supports Python 3.11-3.13, not newer Python 3.14+.
+    # `py -3` may select a too-new interpreter on Windows, so probe each
+    # supported version and prefer the most extensively tested one first.
+    $pythonCommand = $null
+    $pythonArguments = @()
+    $candidates = @(
+        @{ Executable = 'py'; Arguments = @('-3.11') },
+        @{ Executable = 'py'; Arguments = @('-3.12') },
+        @{ Executable = 'py'; Arguments = @('-3.13') },
+        @{ Executable = 'python'; Arguments = @() }
+    )
+    foreach ($candidate in $candidates) {
+        $executable = $candidate.Executable
+        if (-not (Get-Command $executable -ErrorAction SilentlyContinue)) { continue }
+        $candidateArgs = @($candidate.Arguments)
+        try {
+            & $executable @candidateArgs -c 'import sys; sys.exit(0 if (3, 11) <= sys.version_info[:2] <= (3, 13) else 1)' 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) { continue }
+        } catch {
+            continue
+        }
+        $pythonCommand = $executable
+        $pythonArguments = $candidateArgs
+        break
     }
-    if ($LASTEXITCODE -ne 0) { throw 'Python 3.11+ required' }
+    if (-not $pythonCommand) {
+        throw 'Cortex M12 requires Python 3.11, 3.12 or 3.13 (PyTorch 2.7 compatibility)'
+    }
+}
+& $pythonCommand @pythonArguments (Join-Path $root 'runtime-preflight.py')
+if ($LASTEXITCODE -ne 0) { throw 'Cortex M12 preflight failed' }
+if ($Check) { return }
+if (-not $env:CORTEX_PAIRING_CODE -and [Console]::IsOutputRedirected) {
+    throw 'Cannot display a pairing code with redirected output. Run in an interactive terminal or provide CORTEX_PAIRING_CODE through your launcher.'
+}
+if ($env:CORTEX_PAIRING_CODE -and $env:CORTEX_PAIRING_CODE -notmatch '^[0-9]{9}$') {
+    throw 'CORTEX_PAIRING_CODE must contain exactly nine decimal digits'
+}
+& $pythonCommand @pythonArguments (Join-Path $root 'runtime-preflight.py') --check-port
+if ($LASTEXITCODE -ne 0) { throw 'Cortex M12 local port 8000 preflight failed' }
+if (-not (Test-Path $venvPython)) {
+    & $pythonCommand @pythonArguments -m venv (Join-Path $root '.venv')
+    if ($LASTEXITCODE -ne 0) { throw 'Python 3.11-3.13 required' }
 }
 $wheel = Get-ChildItem (Join-Path $root 'wheel') -Filter 'cortex_debugger-*.whl' | Select-Object -First 1
 if (-not $wheel) { throw 'Cortex package wheel missing' }
-$marker = Join-Path $root '.venv\.cortex-m11-ready'
-if (-not (Test-Path $marker)) {
+$marker = Join-Path $root '.venv\.cortex-runtime-wheel-sha256'
+$wheelSha256 = (Get-FileHash -LiteralPath $wheel.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+$installedSha256 = if (Test-Path $marker) { (Get-Content -LiteralPath $marker -Raw).Trim() } else { '' }
+if ($installedSha256 -ne $wheelSha256) {
+    Write-Host 'Preparing Cortex runtime dependencies for this bundle (first setup may take a while)...'
     & $venvPython -m pip install --upgrade pip
     if ($LASTEXITCODE -ne 0) { throw 'pip upgrade failed' }
     & $venvPython -m pip install 'torch==2.7.1'
     if ($LASTEXITCODE -ne 0) { throw 'PyTorch install failed' }
     & $venvPython -m pip install "$($wheel.FullName)[ml,api]"
     if ($LASTEXITCODE -ne 0) { throw 'Cortex dependency install failed' }
-    New-Item -ItemType File -Path $marker -Force | Out-Null
+    # Record success only after every dependency was installed.
+    $temporaryMarker = "$marker.$PID.tmp"
+    Set-Content -LiteralPath $temporaryMarker -Value $wheelSha256 -NoNewline
+    Move-Item -LiteralPath $temporaryMarker -Destination $marker -Force
 }
 # The GUI may set CORTEX_PAIRING_CODE itself and display it privately.
-# Standalone PowerShell launch prints a new one-time code interactively.
+# Standalone PowerShell launch prints a new one-time code only to a terminal.
 if (-not $env:CORTEX_PAIRING_CODE) {
-    $code = [System.Security.Cryptography.RandomNumberGenerator]::GetInt32(0, 1000000000)
-    $env:CORTEX_PAIRING_CODE = $code.ToString('D9')
+    # Windows PowerShell 5.1 runs on .NET Framework, which does not expose
+    # RandomNumberGenerator.GetInt32. Use Python's CSPRNG on all Windows hosts.
+    $generatedCode = & $venvPython -c 'import secrets; print(str(secrets.randbelow(1000000000)).zfill(9))'
+    if ($LASTEXITCODE -ne 0 -or $generatedCode -notmatch '^[0-9]{9}$') {
+        throw 'Could not generate a secure Cortex pairing code'
+    }
+    $env:CORTEX_PAIRING_CODE = $generatedCode
     Write-Host "Cortex pairing code: $env:CORTEX_PAIRING_CODE"
 }
 # Local Windows owner control uses explicit current-SID DACL and

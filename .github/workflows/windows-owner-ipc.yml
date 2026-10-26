@@ -39,6 +39,34 @@ jobs:
       - name: Validate real Windows pipe ACL, impersonation, protocol and shutdown
         shell: pwsh
         run: python -m pytest -q tests/test_windows_owner_ipc.py
+      - name: Verify another Windows account is denied by the kernel pipe DACL
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $userName = 'cortex' + [Guid]::NewGuid().ToString('N').Substring(0, 12)
+          $password = [Convert]::ToBase64String(
+            [System.Security.Cryptography.RandomNumberGenerator]::GetBytes(36)
+          ) + 'aA1!'
+          $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+          New-LocalUser -Name $userName -Password $securePassword |
+            Out-Null
+          try {
+            $env:CORTEX_TEST_ALT_USER = $userName
+            $env:CORTEX_TEST_ALT_DOMAIN = $env:COMPUTERNAME
+            $env:CORTEX_TEST_ALT_PASSWORD = $password
+            $env:CORTEX_TEST_CROSS_USER_REQUIRED = '1'
+            python -m pytest -q tests/test_windows_owner_ipc.py `
+              -k real_cross_user_access_denied_by_pipe_dacl
+            if ($LASTEXITCODE -ne 0) {
+              throw 'Real alternate-account named-pipe denial test failed'
+            }
+          } finally {
+            Remove-Item Env:CORTEX_TEST_ALT_PASSWORD -ErrorAction SilentlyContinue
+            Remove-Item Env:CORTEX_TEST_ALT_USER -ErrorAction SilentlyContinue
+            Remove-Item Env:CORTEX_TEST_ALT_DOMAIN -ErrorAction SilentlyContinue
+            Remove-Item Env:CORTEX_TEST_CROSS_USER_REQUIRED -ErrorAction SilentlyContinue
+            Remove-LocalUser -Name $userName
+          }
       - name: Validate explicit Windows SID and named-pipe modules
         shell: pwsh
         run: |

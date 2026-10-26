@@ -9,12 +9,25 @@ and **cancel a validated experiment ID**. The Windows
 passed on a hosted Windows x64 runner.
 
 This is **not protection from malicious processes running as the same user**
-and does **not yet make browser HTTP calls use the pipe**. Native GUI use,
-other-user account attempts and an M12 ZIP installation still need validation.
+and does **not yet make browser HTTP calls use the pipe**. A real alternate
+Windows account token was denied in CI, and extracted M12 ZIP API/browser
+smoke has passed on Windows and Linux. Actual native GUI click-through,
+separate logged-in desktop sessions, and Apple Silicon device validation
+still require manual testing.
 
 See [Windows IPC design](docs/M12_WINDOWS_PIPE.md) and the
 [M12 verification log](docs/M12_VALIDATION.md).
 The existing public v0.11.0-rc1 assets have not changed.
+
+### M12 unpublished source-runtime candidate
+
+The [M12 testing instructions](docs/M12_RELEASE.md) cover the Actions ZIP,
+checksum verification, supported Python 3.11-3.13, and initial pairing. The
+candidate now includes `Start-Cortex.command` for a visible macOS Finder-to-
+Terminal launch. Windows PowerShell 5.1 uses Python's secure code generator;
+both launchers check for local port 8000 conflicts and malformed supplied
+pairing codes **before** dependency downloads. This is **not** a signed app,
+offline installer, or published v0.12.0 release.
 
 ## M12 development: OS-verified owner control IPC (Linux and macOS)
 
@@ -35,8 +48,9 @@ python -m apps.api.owner_ipc cancel 0123456789abcdef0123456789abcdef
 The browser still uses M11 one-time pairing and bearer authorization over
 loopback HTTP. **This does not move browser HTTP requests onto OS-authenticated
 IPC**, and **same-account malware can use the socket** because it shares the
-same UID. Windows named-pipe support and independent M12 release validation
-are still pending. See [M12 architecture](docs/M12_OWNER_IPC.md).
+same UID. Windows named-pipe support has since landed on the M12 development
+branch; independent candidate CI is in progress, with native desktop launch
+still a manual gate. See [M12 architecture](docs/M12_OWNER_IPC.md).
 
 ## M11 v0.11.0-rc1 — one-time local browser pairing
 

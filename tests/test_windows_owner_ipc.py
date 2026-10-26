@@ -5,6 +5,7 @@ Windows GitHub-hosted runner exercises OS named pipes; no model needed.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 
@@ -71,17 +72,86 @@ def test_client_impersonation_sid_mismatch_fails_closed(pipe, monkeypatch):
     assert seen == []
 
 
+def test_real_cross_user_access_denied_by_pipe_dacl(pipe):
+    """A distinct local Windows account must fail at the kernel DACL check.
+
+    Windows CI provisions this disposable account immediately before the test
+    and deletes it in a PowerShell finally block. Ordinary local test runs
+    skip the check unless those temporary credentials are supplied.
+    """
+    username = os.environ.get("CORTEX_TEST_ALT_USER")
+    password = os.environ.get("CORTEX_TEST_ALT_PASSWORD")
+    domain = os.environ.get("CORTEX_TEST_ALT_DOMAIN")
+    if not all((username, password, domain)):
+        if os.environ.get("CORTEX_TEST_CROSS_USER_REQUIRED") == "1":
+            pytest.fail("CI cross-user account credentials are missing")
+        pytest.skip("Requires a disposable, different Windows test account")
+
+    import pywintypes
+    import win32con
+    import win32security
+
+    from apps.api.owner_pipe_windows import request_control_name
+
+    server, seen = pipe
+    token = win32security.LogonUser(
+        username, domain, password,
+        win32con.LOGON32_LOGON_INTERACTIVE, win32con.LOGON32_PROVIDER_DEFAULT,
+    )
+    try:
+        foreign_sid = win32security.ConvertSidToStringSid(
+            win32security.GetTokenInformation(token, win32security.TokenUser)[0]
+        )
+        assert foreign_sid != server.owner_sid, "Test account must have another SID"
+
+        impersonating = False
+        try:
+            win32security.ImpersonateLoggedOnUser(token)
+            impersonating = True
+            with pytest.raises(pywintypes.error) as denied:
+                request_control_name(server.name, {
+                    "command": "cancel", "id": "ab" * 16,
+                })
+            assert denied.value.winerror == 5, "Windows must return ACCESS_DENIED"
+        finally:
+            if impersonating:
+                win32security.RevertToSelf()
+    finally:
+        token.Close()
+
+    assert seen == [], "Another user must not dispatch a control command"
+    assert request_control_name(server.name, {"command": "status"})["ok"] is True
+
+
 def test_excessive_message_and_invalid_command_are_rejected(pipe):
     from apps.api.owner_pipe_windows import request_control_name
 
     server, seen = pipe
-    assert request_control_name(server.name, {
-        "command": "cancel", "id": "x" * 8200
-    })["error"] == "bad_or_oversized_request"
+    with pytest.raises(ValueError, match="Oversize named-pipe request"):
+        request_control_name(server.name, {"command": "cancel", "id": "x" * 8200})
     assert request_control_name(server.name, {
         "command": "cancel", "id": "not-hex"
     })["error"] == "unknown_command"
     assert seen == []
+
+
+def test_oversized_request_is_rejected_before_opening_pipe(pipe, monkeypatch):
+    from apps.api import owner_pipe_windows
+
+    server, _ = pipe
+    original = owner_pipe_windows._win32
+
+    def fail_if_pipe_is_opened():
+        modules = list(original())
+        class NoOpen:
+            def CreateFile(self, *_args, **_kwargs):
+                pytest.fail("Oversized request must not open the pipe")
+        modules[3] = NoOpen()
+        return tuple(modules)
+
+    monkeypatch.setattr(owner_pipe_windows, "_win32", fail_if_pipe_is_opened)
+    with pytest.raises(ValueError, match="Oversize named-pipe request"):
+        owner_pipe_windows.request_control_name(server.name, {"command": "status", "x": "z" * 8200})
 
 
 def test_second_service_cannot_steal_running_named_pipe(pipe):

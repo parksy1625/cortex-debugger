@@ -27,6 +27,8 @@ permissions:
 
 jobs:
   bundle-smoke:
+    # The M11 builder must only run against its original tagged sources.
+    if: github.ref == 'refs/tags/v0.11.0-rc1'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -103,7 +105,8 @@ jobs:
 
   publish-tagged-release:
     needs: bundle-smoke
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/tags/v0.11.0-rc1'
+    # Manual development runs on main must not publish an historical release.
+    if: github.ref == 'refs/tags/v0.11.0-rc1'
     runs-on: ubuntu-latest
     permissions:
       contents: write

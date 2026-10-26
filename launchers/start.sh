@@ -6,13 +6,35 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 VENV="$ROOT/.venv"
-if [[ ! -x "$VENV/bin/python" ]]; then
+if [[ $# -gt 1 || ( $# -eq 1 && "$1" != "--check" ) ]]; then
+  echo "Usage: ./start.sh [--check]" >&2
+  exit 2
+fi
+if [[ -x "$VENV/bin/python" ]]; then
+  PYTHON="$VENV/bin/python"
+else
   if command -v python3.11 >/dev/null 2>&1; then
     PYTHON=python3.11
   else
     PYTHON=python3
   fi
-  "$PYTHON" -c 'import sys; assert sys.version_info >= (3,11), "Python 3.11+ required"'
+fi
+"$PYTHON" "$ROOT/runtime-preflight.py"
+if [[ "${1:-}" == "--check" ]]; then
+  exit 0
+fi
+if [[ ! -t 1 && -z "${CORTEX_PAIRING_CODE:-}" ]]; then
+  echo "Cannot display a pairing code with redirected output. Run in an interactive terminal or provide CORTEX_PAIRING_CODE through your launcher." >&2
+  exit 2
+fi
+if [[ -n "${CORTEX_PAIRING_CODE:-}" && ! "$CORTEX_PAIRING_CODE" =~ ^[0-9]{9}$ ]]; then
+  echo "CORTEX_PAIRING_CODE must contain exactly nine decimal digits." >&2
+  exit 2
+fi
+# Report a conflicting local service before creating a venv or downloading
+# large ML dependencies. This does not reserve the port for uvicorn.
+"$PYTHON" "$ROOT/runtime-preflight.py" --check-port
+if [[ ! -x "$VENV/bin/python" ]]; then
   "$PYTHON" -m venv "$VENV"
 fi
 
@@ -22,7 +44,10 @@ if [[ -z "$WHEEL" ]]; then
   exit 2
 fi
 
-if [[ ! -f "$VENV/.cortex-m11-ready" ]]; then
+WHEEL_SHA256="$("$VENV/bin/python" -c 'import hashlib,sys; print(hashlib.file_digest(open(sys.argv[1], "rb"), "sha256").hexdigest())' "$WHEEL")"
+READY_MARKER="$VENV/.cortex-runtime-wheel-sha256"
+if [[ ! -f "$READY_MARKER" || "$(<"$READY_MARKER")" != "$WHEEL_SHA256" ]]; then
+  echo "Preparing Cortex runtime dependencies for this bundle (first setup may take a while)..."
   "$VENV/bin/python" -m pip install --upgrade pip
   if [[ "$(uname -s)" == "Linux" ]]; then
     # Official CPU wheel prevents a large unrequested CUDA toolchain.
@@ -34,7 +59,9 @@ if [[ ! -f "$VENV/.cortex-m11-ready" ]]; then
     "$VENV/bin/python" -m pip install 'torch==2.7.1'
     "$VENV/bin/python" -m pip install "${WHEEL}[ml,api]"
   fi
-  touch "$VENV/.cortex-m11-ready"
+  # Only mark this exact wheel ready after every install command succeeds.
+  printf '%s\n' "$WHEEL_SHA256" > "$READY_MARKER.tmp.$$"
+  mv -f "$READY_MARKER.tmp.$$" "$READY_MARKER"
 fi
 
 # Each server launch uses a fresh random 9-digit, single-use pairing code.

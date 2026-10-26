@@ -217,6 +217,11 @@ class WindowsOwnerControl:
             pass
         if self._thread is not None:
             self._thread.join(timeout=5)
+            if self._thread.is_alive():
+                # Closing an active pipe handle underneath the service thread
+                # can race with ReadFile/DisconnectNamedPipe. Keep ownership of
+                # the handle and report an incomplete shutdown instead.
+                raise RuntimeError("Owner pipe worker did not stop")
         handle.Close()
         self._handle = None
         self._thread = None
@@ -224,6 +229,9 @@ class WindowsOwnerControl:
 
 def request_control_name(name: str, payload: dict[str, str]) -> dict:
     pywintypes, _, win32con, win32file, win32pipe, _ = _win32()
+    encoded = (json.dumps(payload, separators=(",", ":")) + "\n").encode("utf-8")
+    if len(encoded) > MAX_CONTROL_BYTES:
+        raise ValueError("Oversize named-pipe request")
     try:
         client = win32file.CreateFile(
             name,
@@ -244,13 +252,12 @@ def request_control_name(name: str, payload: dict[str, str]) -> dict:
             None,
         )
     try:
-        _, value = win32file.WriteFile(client, (json.dumps(payload) + "\n").encode())
-        _ = value
+        win32file.WriteFile(client, encoded)
         _, response = win32file.ReadFile(client, MAX_CONTROL_BYTES + 1)
     finally:
         client.Close()
-    if len(response) > MAX_CONTROL_BYTES:
-        raise ValueError("Oversize named-pipe response")
+    if len(response) > MAX_CONTROL_BYTES or not response.endswith(b"\n"):
+        raise ValueError("Invalid named-pipe response framing")
     result = json.loads(response)
     if not isinstance(result, dict):
         raise ValueError("Invalid named-pipe response")

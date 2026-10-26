@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cortex-debugger"
-version = "0.11.0rc1"
+version = "0.12.0rc1"
 description = "Local-first causal activation debugging for open-weight language models"
 readme = "README.md"
 requires-python = ">=3.11"
