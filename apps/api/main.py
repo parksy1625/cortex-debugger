@@ -23,6 +23,7 @@ from apps.api.local_security import protect_local_requests
 from apps.api.pairing import pairing_from_environment
 from apps.api.privacy import shareable_report
 
+
 @asynccontextmanager
 async def app_lifespan(target_app: FastAPI):
     """Opt-in OS peer-verified admin IPC; web API retains browser pairing."""
