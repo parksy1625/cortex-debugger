@@ -179,9 +179,13 @@ class WindowsOwnerControl:
                         _write_response(handle, {"ok": False, "error": "peer_denied"})
                     else:
                         _write_response(handle, self._dispatch(message))
-                except pywintypes.error:
-                    # No operation is dispatched if impersonation fails.
-                    pass
+                except (OSError, pywintypes.error, AttributeError):
+                    # No command is dispatched if peer impersonation fails.
+                    # Do not echo exception details that might include paths.
+                    try:
+                        _write_response(handle, {"ok": False, "error": "peer_auth_failed"})
+                    except (OSError, pywintypes.error):
+                        pass
             except (OSError, pywintypes.error):
                 if self._stopping.is_set():
                     break
@@ -196,10 +200,20 @@ class WindowsOwnerControl:
         if handle is None:
             return
         self._stopping.set()
-        # Connect a minimal wakeup request to unblock ConnectNamedPipe.
+        # Stop does not wait for a reply: once the stop flag is set the
+        # server intentionally closes the next client connection.
         try:
-            request_control_name(self.name, {"command": "status"})
-        except (OSError, RuntimeError, ValueError):
+            _, _, win32con, win32file, _, _ = _win32()
+            wake = win32file.CreateFile(
+                self.name, win32con.GENERIC_READ | win32con.GENERIC_WRITE,
+                0, None, win32con.OPEN_EXISTING,
+                win32con.SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION, None,
+            )
+            try:
+                win32file.WriteFile(wake, b'{"command":"status"}\n')
+            finally:
+                wake.Close()
+        except (OSError, RuntimeError):
             pass
         if self._thread is not None:
             self._thread.join(timeout=5)
