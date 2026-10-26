@@ -8,8 +8,11 @@ on:
       - 'packages/**'
       - 'launchers/**'
       - 'scripts/build_release.py'
+      - 'scripts/smoke_m12_candidate.py'
+      - 'tests/test_m12_candidate_smoke.py'
       - 'docs/M12_RELEASE.md'
       - 'pyproject.toml'
+      - 'requirements-linux-py311.lock'
       - '.github/workflows/m12-candidate.yml'
   pull_request:
     paths:
@@ -17,8 +20,11 @@ on:
       - 'packages/**'
       - 'launchers/**'
       - 'scripts/build_release.py'
+      - 'scripts/smoke_m12_candidate.py'
+      - 'tests/test_m12_candidate_smoke.py'
       - 'docs/M12_RELEASE.md'
       - 'pyproject.toml'
+      - 'requirements-linux-py311.lock'
       - '.github/workflows/m12-candidate.yml'
   workflow_dispatch:
 
@@ -62,3 +68,29 @@ jobs:
             artifacts/Cortex-Debugger-v0.12.0-rc1.zip
             artifacts/Cortex-Debugger-v0.12.0-rc1.zip.sha256
           if-no-files-found: error
+
+  extracted-smoke:
+    name: Extracted ZIP smoke (${{ matrix.os }})
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: cortex-m12-source-candidate
+          path: artifacts
+      - name: Verify candidate ZIP in isolated install, HTTP pairing and owner IPC
+        run: >-
+          python scripts/smoke_m12_candidate.py
+          --archive artifacts/Cortex-Debugger-v0.12.0-rc1.zip
+          --checksum artifacts/Cortex-Debugger-v0.12.0-rc1.zip.sha256
+      - name: Unit-check the candidate artifact verifier
+        run: python -m unittest discover -s tests -p test_m12_candidate_smoke.py

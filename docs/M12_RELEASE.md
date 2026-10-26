@@ -23,6 +23,24 @@ version and rejects an existing destination rather than overwriting it.
 The launchers track the exact bundled wheel SHA-256 and reinstall dependencies
 when it changes; they only write the marker after a successful installation.
 
+The unpublished M12 Actions workflow also downloads the *same ZIP artifact*
+on Ubuntu, macOS and Windows, checks its SHA-256 again, extracts it into a
+temporary directory, installs the bundled wheel with API dependencies in an
+isolated Python environment, and boots only the extracted API. The smoke
+checks the production UI, M12 health/version, unauthenticated API rejection,
+single-use browser pairing and OS-specific owner IPC status. It intentionally
+does not install PyTorch or download model weights; real GPT-2 tests remain a
+separate release gate.
+
+To repeat that quick check locally after downloading the ZIP and its matching
+checksum sidecar into `artifacts/`:
+
+```bash
+python scripts/smoke_m12_candidate.py \
+  --archive artifacts/Cortex-Debugger-v0.12.0-rc1.zip \
+  --checksum artifacts/Cortex-Debugger-v0.12.0-rc1.zip.sha256
+```
+
 ## Security and validation limits
 
 M11 one-time browser pairing is retained. A separate M12 owner-control IPC
