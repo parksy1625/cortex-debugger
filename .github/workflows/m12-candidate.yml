@@ -94,3 +94,57 @@ jobs:
           --checksum artifacts/Cortex-Debugger-v0.12.0-rc1.zip.sha256
       - name: Unit-check the candidate artifact verifier
         run: python -m unittest discover -s tests -p test_m12_candidate_smoke.py
+
+  real-gpt2-browser:
+    name: Extracted ZIP + real GPT-2 + Chromium (Linux CPU)
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: cortex-m12-source-candidate
+          path: artifacts
+      - name: Check checksum and extract only the candidate ZIP
+        run: |
+          python -c "from pathlib import Path; from scripts.smoke_m12_candidate import verify_checksum,extract_candidate; z=Path('artifacts/Cortex-Debugger-v0.12.0-rc1.zip'); verify_checksum(z,Path(str(z)+'.sha256')); extract_candidate(z,Path('/tmp/cortex-m12-live'))"
+          test -f /tmp/cortex-m12-live/apps/web/dist/index.html
+      - name: Install real CPU model dependencies from extracted wheel
+        run: |
+          python -m venv /tmp/cortex-m12-live-venv
+          /tmp/cortex-m12-live-venv/bin/python -m pip install 'torch==2.7.1' --index-url https://download.pytorch.org/whl/cpu
+          WHEEL=$(find /tmp/cortex-m12-live/wheel -name 'cortex_debugger-*.whl' -print -quit)
+          test -n "$WHEEL"
+          /tmp/cortex-m12-live-venv/bin/python -m pip install "${WHEEL}[ml,api]" -c /tmp/cortex-m12-live/requirements-linux-py311.lock
+      - name: Start unpacked candidate API with browser pairing
+        run: |
+          cd /tmp/cortex-m12-live
+          CORTEX_PAIRING_CODE=123456789 CORTEX_OWNER_IPC=1 CORTEX_DATA_DIR=/tmp/cortex-m12-live-data /tmp/cortex-m12-live-venv/bin/python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000 --workers 1 > /tmp/cortex-m12-live.log 2>&1 &
+          echo $! > /tmp/cortex-m12-live.pid
+          curl --retry 35 --retry-delay 2 --retry-connrefused -fsS http://127.0.0.1:8000/api/v1/health
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/v1/models)" = 401
+      - name: Install browser test dependencies
+        working-directory: apps/web
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chrome
+      - name: Real GPT-2 browser experiment against the extracted ZIP
+        working-directory: apps/web
+        env:
+          CORTEX_LIVE_MODEL: '1'
+          CORTEX_TEST_PAIRING_CODE: '123456789'
+          CORTEX_EXPECT_STAGE: 'M12'
+          CORTEX_EXPECT_VERSION: '0.12.0rc1'
+        run: npx playwright test tests/live-model.spec.ts --config playwright.release.config.ts
+      - name: Shut down extracted candidate API
+        if: always()
+        run: |
+          if [ -f /tmp/cortex-m12-live.pid ]; then kill "$(cat /tmp/cortex-m12-live.pid)" || true; fi
+      # Source candidate stays an Actions artifact; this job never publishes.

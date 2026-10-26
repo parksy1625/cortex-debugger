@@ -32,6 +32,14 @@ single-use browser pairing and OS-specific owner IPC status. It intentionally
 does not install PyTorch or download model weights; real GPT-2 tests remain a
 separate release gate.
 
+A separate Linux candidate job installs the bundled wheel with pinned CPU
+PyTorch and model dependencies, starts the *extracted* server with pairing,
+and runs the existing Chromium Playwright end-to-end experiment using actual
+pinned GPT-2 weights. The browser test also verifies M12 API stage/version,
+model revision, recovery and regression JSON export. This job is a required
+piece of release evidence **once its Actions result is confirmed**; adding
+the job does not itself mean it has passed.
+
 To repeat that quick check locally after downloading the ZIP and its matching
 checksum sidecar into `artifacts/`:
 

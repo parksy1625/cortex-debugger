@@ -2,6 +2,17 @@ import { expect, test } from '@playwright/test';
 
 test('real GPT-2 browser-to-API experiment and manifest export', async ({ page }) => {
   test.skip(process.env.CORTEX_LIVE_MODEL !== '1', 'Live model test runs only in opted-in CI');
+  if (process.env.CORTEX_EXPECT_STAGE || process.env.CORTEX_EXPECT_VERSION) {
+    const response = await page.request.get('/api/v1/health');
+    expect(response.ok()).toBeTruthy();
+    const health = await response.json();
+    if (process.env.CORTEX_EXPECT_STAGE) {
+      expect(health.stage).toBe(process.env.CORTEX_EXPECT_STAGE);
+    }
+    if (process.env.CORTEX_EXPECT_VERSION) {
+      expect(health.version).toBe(process.env.CORTEX_EXPECT_VERSION);
+    }
+  }
   await page.goto('/');
   if (process.env.CORTEX_TEST_PAIRING_CODE) {
     await expect(page.getByRole('heading',{name:'Connect to your local Cortex'})).toBeVisible();
