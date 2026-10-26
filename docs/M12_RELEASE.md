@@ -7,7 +7,7 @@ creating a GitHub Release or modifying historical v0.11.0-rc1 assets.
 The bundle contains a Python engine wheel, compiled local Studio,
 FastAPI runtime source, and macOS/Linux/Windows bootstrap scripts. It does
 not contain Python, PyTorch wheels, GPT-2 weights, model cache, or user data.
-Python 3.11+ and network access are required on first installation.
+Python 3.11-3.13 and network access are required on first installation.
 
 ## Local developer validation
 
@@ -33,8 +33,10 @@ If you launch either native script noninteractively, a desktop wrapper must
 provide `CORTEX_PAIRING_CODE` through the child process environment; otherwise
 the launcher stops **before** installing dependencies. The `--check` / `-Check`
 preflight remains safe in redirected CI logs and never requires a pairing code.
-The Windows launcher can use an installed Python 3.12+ via `py -3` when 3.11
-is not present; runtime preflight still rejects versions older than 3.11.
+The Windows launcher probes Python 3.11, then 3.12 and 3.13, falling back to
+a compatible `python` on `PATH`. It never blindly selects the newest installed
+runtime via `py -3`: pinned PyTorch 2.7 does **not** support Python 3.14+.
+The shared preflight rejects both older and too-new Python versions.
 
 The unpublished M12 Actions workflow also downloads the *same ZIP artifact*
 on Ubuntu, macOS and Windows, checks its SHA-256 again, extracts it into a

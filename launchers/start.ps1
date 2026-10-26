@@ -1,6 +1,6 @@
 param([switch]$Check)
 # Cortex Debugger M12 on Windows (PowerShell).
-# Install Python 3.11+ first. The app is localhost-only.
+# Install Python 3.11-3.13 first (pinned PyTorch 2.7). The app is localhost-only.
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 $root = $PSScriptRoot
@@ -8,14 +8,35 @@ $venvPython = Join-Path $root '.venv\Scripts\python.exe'
 if (Test-Path $venvPython) {
     $pythonCommand = $venvPython
     $pythonArguments = @()
-} elseif (Get-Command py -ErrorAction SilentlyContinue) {
-    $pythonCommand = 'py'
-    # Resolve an installed Python 3 runtime, not only precisely Python 3.11.
-    # The shared preflight enforces the minimum supported version (3.11).
-    $pythonArguments = @('-3')
 } else {
-    $pythonCommand = 'python'
+    # PyTorch 2.7 supports Python 3.11-3.13, not newer Python 3.14+.
+    # `py -3` may select a too-new interpreter on Windows, so probe each
+    # supported version and prefer the most extensively tested one first.
+    $pythonCommand = $null
     $pythonArguments = @()
+    $candidates = @(
+        @{ Executable = 'py'; Arguments = @('-3.11') },
+        @{ Executable = 'py'; Arguments = @('-3.12') },
+        @{ Executable = 'py'; Arguments = @('-3.13') },
+        @{ Executable = 'python'; Arguments = @() }
+    )
+    foreach ($candidate in $candidates) {
+        $executable = $candidate.Executable
+        if (-not (Get-Command $executable -ErrorAction SilentlyContinue)) { continue }
+        $candidateArgs = @($candidate.Arguments)
+        try {
+            & $executable @candidateArgs -c 'import sys; sys.exit(0 if (3, 11) <= sys.version_info[:2] <= (3, 13) else 1)' 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) { continue }
+        } catch {
+            continue
+        }
+        $pythonCommand = $executable
+        $pythonArguments = $candidateArgs
+        break
+    }
+    if (-not $pythonCommand) {
+        throw 'Cortex M12 requires Python 3.11, 3.12 or 3.13 (PyTorch 2.7 compatibility)'
+    }
 }
 & $pythonCommand @pythonArguments (Join-Path $root 'runtime-preflight.py')
 if ($LASTEXITCODE -ne 0) { throw 'Cortex M12 preflight failed' }
@@ -25,7 +46,7 @@ if (-not $env:CORTEX_PAIRING_CODE -and [Console]::IsOutputRedirected) {
 }
 if (-not (Test-Path $venvPython)) {
     & $pythonCommand @pythonArguments -m venv (Join-Path $root '.venv')
-    if ($LASTEXITCODE -ne 0) { throw 'Python 3.11+ required' }
+    if ($LASTEXITCODE -ne 0) { throw 'Python 3.11-3.13 required' }
 }
 $wheel = Get-ChildItem (Join-Path $root 'wheel') -Filter 'cortex_debugger-*.whl' | Select-Object -First 1
 if (-not $wheel) { throw 'Cortex package wheel missing' }

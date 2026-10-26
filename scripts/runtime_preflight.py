@@ -15,8 +15,8 @@ WHEEL_VERSION = "0.12.0rc1"
 def validate(root: Path, *, python_version: tuple[int, int] | None = None) -> Path:
     """Return the sole compatible wheel; fail early on incomplete/old runtimes."""
     version = python_version if python_version is not None else sys.version_info[:2]
-    if version < (3, 11):
-        raise ValueError("Cortex Debugger M12 requires Python 3.11 or newer")
+    if not (3, 11) <= version <= (3, 13):
+        raise ValueError("Cortex Debugger M12 requires Python 3.11-3.13 for PyTorch 2.7")
     wheel_dir = root / "wheel"
     wheels = sorted(wheel_dir.glob("cortex_debugger-*.whl"))
     if (len(wheels) != 1 or not wheels[0].is_file() or wheels[0].is_symlink()

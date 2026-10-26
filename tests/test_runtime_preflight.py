@@ -44,6 +44,8 @@ class RuntimePreflightTests(unittest.TestCase):
     def test_rejects_unsupported_python_and_mismatched_wheels(self):
         with self.assertRaisesRegex(ValueError, "Python 3.11"):
             validate(self.root, python_version=(3, 10))
+        with self.assertRaisesRegex(ValueError, "Python 3.11"):
+            validate(self.root, python_version=(3, 14))
         wheel = self.root / "wheel/cortex_debugger-0.12.0rc1-py3-none-any.whl"
         wheel.rename(self.root / "wheel/cortex_debugger-0.11.0rc1-py3-none-any.whl")
         with self.assertRaisesRegex(ValueError, "exactly one"):

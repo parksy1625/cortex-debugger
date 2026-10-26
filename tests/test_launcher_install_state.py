@@ -18,7 +18,10 @@ def test_posix_setup_marker_is_content_based_and_written_after_install():
 
 def test_windows_setup_marker_is_content_based_and_written_after_install():
     source = (LAUNCHERS / "start.ps1").read_text(encoding="utf-8")
-    assert "$pythonArguments = @('-3')" in source
+    assert "Arguments = @('-3.11')" in source
+    assert "Arguments = @('-3.12')" in source
+    assert "Arguments = @('-3.13')" in source
+    assert "Arguments = @('-3')" not in source
     assert "Get-FileHash -LiteralPath $wheel.FullName -Algorithm SHA256" in source
     assert source.index("'runtime-preflight.py'") < source.index("-m venv")
     assert source.index("[Console]::IsOutputRedirected") < source.index("-m venv")
