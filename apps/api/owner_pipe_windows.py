@@ -21,6 +21,7 @@ from typing import Any
 MAX_CONTROL_BYTES = 8192
 PIPE_REJECT_REMOTE_CLIENTS = 0x00000008
 FILE_FLAG_FIRST_PIPE_INSTANCE = 0x00080000  # Win32 CreateNamedPipeW open mode
+SECURITY_IDENTIFICATION = 0x00010000  # SECURITY_IMPERSONATION_LEVEL in CreateFileW
 
 
 def _win32():
@@ -213,7 +214,7 @@ def request_control_name(name: str, payload: dict[str, str]) -> dict:
         name,
         win32con.GENERIC_READ | win32con.GENERIC_WRITE,
         0, None, win32con.OPEN_EXISTING,
-        win32con.SECURITY_SQOS_PRESENT | win32con.SECURITY_IDENTIFICATION,
+        win32con.SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION,
         None,
     )
     try:
