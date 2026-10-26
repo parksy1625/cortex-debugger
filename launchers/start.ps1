@@ -14,15 +14,21 @@ if (-not (Test-Path $venvPython)) {
 }
 $wheel = Get-ChildItem (Join-Path $root 'wheel') -Filter 'cortex_debugger-*.whl' | Select-Object -First 1
 if (-not $wheel) { throw 'Cortex package wheel missing' }
-$marker = Join-Path $root '.venv\.cortex-m11-ready'
-if (-not (Test-Path $marker)) {
+$marker = Join-Path $root '.venv\.cortex-runtime-wheel-sha256'
+$wheelSha256 = (Get-FileHash -LiteralPath $wheel.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+$installedSha256 = if (Test-Path $marker) { (Get-Content -LiteralPath $marker -Raw).Trim() } else { '' }
+if ($installedSha256 -ne $wheelSha256) {
+    Write-Host 'Preparing Cortex runtime dependencies for this bundle (first setup may take a while)...'
     & $venvPython -m pip install --upgrade pip
     if ($LASTEXITCODE -ne 0) { throw 'pip upgrade failed' }
     & $venvPython -m pip install 'torch==2.7.1'
     if ($LASTEXITCODE -ne 0) { throw 'PyTorch install failed' }
     & $venvPython -m pip install "$($wheel.FullName)[ml,api]"
     if ($LASTEXITCODE -ne 0) { throw 'Cortex dependency install failed' }
-    New-Item -ItemType File -Path $marker -Force | Out-Null
+    # Record success only after every dependency was installed.
+    $temporaryMarker = "$marker.$PID.tmp"
+    Set-Content -LiteralPath $temporaryMarker -Value $wheelSha256 -NoNewline
+    Move-Item -LiteralPath $temporaryMarker -Destination $marker -Force
 }
 # The GUI may set CORTEX_PAIRING_CODE itself and display it privately.
 # Standalone PowerShell launch prints a new one-time code interactively.

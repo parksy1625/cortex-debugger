@@ -22,7 +22,10 @@ if [[ -z "$WHEEL" ]]; then
   exit 2
 fi
 
-if [[ ! -f "$VENV/.cortex-m11-ready" ]]; then
+WHEEL_SHA256="$("$VENV/bin/python" -c 'import hashlib,sys; print(hashlib.file_digest(open(sys.argv[1], "rb"), "sha256").hexdigest())' "$WHEEL")"
+READY_MARKER="$VENV/.cortex-runtime-wheel-sha256"
+if [[ ! -f "$READY_MARKER" || "$(<"$READY_MARKER")" != "$WHEEL_SHA256" ]]; then
+  echo "Preparing Cortex runtime dependencies for this bundle (first setup may take a while)..."
   "$VENV/bin/python" -m pip install --upgrade pip
   if [[ "$(uname -s)" == "Linux" ]]; then
     # Official CPU wheel prevents a large unrequested CUDA toolchain.
@@ -34,7 +37,9 @@ if [[ ! -f "$VENV/.cortex-m11-ready" ]]; then
     "$VENV/bin/python" -m pip install 'torch==2.7.1'
     "$VENV/bin/python" -m pip install "${WHEEL}[ml,api]"
   fi
-  touch "$VENV/.cortex-m11-ready"
+  # Only mark this exact wheel ready after every install command succeeds.
+  printf '%s\n' "$WHEEL_SHA256" > "$READY_MARKER.tmp.$$"
+  mv -f "$READY_MARKER.tmp.$$" "$READY_MARKER"
 fi
 
 # Each server launch uses a fresh random 9-digit, single-use pairing code.
