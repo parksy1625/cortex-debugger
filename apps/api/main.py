@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+from contextlib import asynccontextmanager
 import os
 import platform
 import re
@@ -22,17 +23,60 @@ from apps.api.local_security import protect_local_requests
 from apps.api.pairing import pairing_from_environment
 from apps.api.privacy import shareable_report
 
-app = FastAPI(title="Cortex Debugger API", version=__version__, docs_url="/api/docs")
+@asynccontextmanager
+async def app_lifespan(target_app: FastAPI):
+    """Opt-in OS peer-verified admin IPC; web API retains browser pairing."""
+    owner = None
+    if os.environ.get("CORTEX_OWNER_IPC") == "1":
+        if os.name != "posix":
+            raise RuntimeError("Owner IPC on Windows needs named pipes; not yet implemented")
+        from apps.api.owner_ipc import OwnerControl
+
+        directory = Path(
+            os.environ.get("CORTEX_DATA_DIR", str(Path.home() / ".cortex-debugger"))
+        )
+        def cancel_checked(job_id: str) -> bool:
+            try:
+                return get_manager_for_app(target_app).cancel(job_id)
+            except NotCancellable:
+                return False
+
+        owner = OwnerControl(
+            directory,
+            get_status=lambda: get_manager_for_app(target_app).model_status(),
+            cancel_job=cancel_checked,
+        )
+        owner.start()
+        target_app.state.owner_control = owner
+    try:
+        yield
+    finally:
+        if owner is not None:
+            owner.close()
+
+
+app = FastAPI(
+    title="Cortex Debugger API", version=__version__,
+    docs_url="/api/docs", lifespan=app_lifespan
+)
 app.middleware("http")(protect_local_requests)
 app.state.pairing = pairing_from_environment()
 _manager_lock = threading.Lock()
 
-def get_manager(request: Request) -> ExperimentManager:
+def get_manager_for_app(target_app: FastAPI) -> ExperimentManager:
     with _manager_lock:
-        if not hasattr(request.app.state, "experiment_manager"):
-            directory = Path(os.environ.get("CORTEX_DATA_DIR", str(Path.home() / ".cortex-debugger")))
-            request.app.state.experiment_manager = ExperimentManager(directory / "experiments.sqlite3")
-        return request.app.state.experiment_manager
+        if not hasattr(target_app.state, "experiment_manager"):
+            directory = Path(
+                os.environ.get("CORTEX_DATA_DIR", str(Path.home() / ".cortex-debugger"))
+            )
+            target_app.state.experiment_manager = ExperimentManager(
+                directory / "experiments.sqlite3"
+            )
+        return target_app.state.experiment_manager
+
+
+def get_manager(request: Request) -> ExperimentManager:
+    return get_manager_for_app(request.app)
 
 class PairRequest(BaseModel):
     code: str = Field(min_length=9, max_length=9, pattern=r"^[0-9]{9}$")
@@ -97,7 +141,7 @@ class ExperimentRequest(BaseModel):
 
 @app.get("/api/v1/health")
 def health() -> dict:
-    return {"status": "ok", "stage": "M11", "version": __version__, "local_only": True}
+    return {"status": "ok", "stage": "M12", "version": __version__, "local_only": True}
 
 @app.get("/api/v1/setup")
 def setup_status() -> dict:

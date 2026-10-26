@@ -2,7 +2,6 @@ name: Local bundle and release
 
 on:
   push:
-    branches: [main]
     tags: ['v0.11.0-rc1']
     paths:
       - 'apps/**'

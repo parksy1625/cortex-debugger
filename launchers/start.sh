@@ -50,4 +50,8 @@ if [[ -t 1 ]]; then
 fi
 echo "Cortex Debugger local app: http://127.0.0.1:8000/"
 echo "Ctrl+C to stop. No network interface is exposed."
+# POSIX-only owner-verified control socket is opt-in at API startup.
+# The socket lives in a mode-0700 directory and verifies Linux SO_PEERCRED
+# or macOS libc.getpeereid. Web requests still use M11 browser pairing.
+export CORTEX_OWNER_IPC=1
 exec "$VENV/bin/python" -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000 --workers 1
